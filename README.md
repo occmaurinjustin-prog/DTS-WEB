@@ -1,61 +1,210 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# DTS Logistics Backend 🚛
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A comprehensive Laravel backend for the DTS Logistics delivery management system with Inertia.js and React frontend.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 🏢 **Multi-Role System**
+- **Admin** - Complete system management, high-end dashboard
+- **Office Staff** - Delivery management, maintenance workflow
+- **Operational Manager** - Client and driver coordination
+- **Driver** - Mobile app integration
+- **Client** - Delivery tracking
+- **Mechanic** - Maintenance management
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 📦 **Delivery Management**
+- Complete delivery lifecycle tracking
+- GPS coordinate integration
+- Route optimization
+- Real-time status updates
+- Pickup and delivery scheduling
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🔧 **Maintenance System**
+- Driver maintenance reports
+- Parts inventory management
+- Mechanic workflow processing
+- Cost tracking and reporting
 
-## Learning Laravel
+### 📊 **Analytics & Dashboard**
+- High-end admin dashboard with neon UI
+- Real-time delivery tracking
+- Performance metrics
+- Interactive charts and graphs
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 📱 **Mobile API**
+- RESTful API for React Native driver app
+- JWT authentication
+- Real-time notifications
+- GPS tracking endpoints
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Tech Stack
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Backend**: Laravel 11
+- **Frontend**: Inertia.js + React
+- **Database**: MySQL
+- **Authentication**: Laravel Sanctum
+- **Real-time**: Laravel Echo + Pusher
+- **File Storage**: Local/Cloud
+- **Queue**: Redis
 
-## Laravel Sponsors
+## Requirements
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- PHP 8.2+
+- Composer
+- MySQL/MariaDB
+- Node.js & NPM
+- Redis (optional, for queues)
 
-### Premium Partners
+## Installation
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 1. Clone Repository
+```bash
+git clone https://github.com/occmaurinjustin-prog/dts-logistics-backend.git
+cd dts-logistics-backend
+```
+
+### 2. Install Dependencies
+```bash
+composer install
+npm install
+npm run build
+```
+
+### 3. Environment Setup
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+### 4. Configure Database
+Update `.env` file:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dts_logistics
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### 5. Run Migrations & Seeders
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+### 6. Start Development Server
+```bash
+php artisan serve
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /api/login` - User login
+- `POST /api/logout` - User logout
+- `GET /api/user` - Current user info
+
+### Drivers
+- `GET /api/drivers` - List drivers
+- `POST /api/drivers/location` - Update GPS location
+- `GET /api/drivers/{id}/deliveries` - Driver deliveries
+
+### Deliveries
+- `GET /api/deliveries` - List deliveries
+- `POST /api/deliveries` - Create delivery
+- `PUT /api/deliveries/{id}` - Update delivery
+- `POST /api/deliveries/{id}/start` - Start delivery
+
+### Maintenance
+- `GET /api/maintenance/reports` - Maintenance reports
+- `POST /api/maintenance/reports` - Submit report
+- `PUT /api/maintenance/reports/{id}/approve` - Approve report
+
+## Frontend Pages
+
+### Admin Dashboard
+- `/admin/dashboard` - High-end analytics dashboard
+- `/admin/users` - User management
+- `/admin/drivers` - Driver management
+- `/admin/trucks` - Fleet management
+- `/admin/deliveries` - Delivery oversight
+
+### Office Staff
+- `/office/dashboard` - Operations dashboard
+- `/office/deliveries` - Delivery management
+- `/office/maintenance` - Maintenance workflow
+- `/office/inventory` - Parts inventory
+
+### Operational Manager
+- `/manager/dashboard` - Coordination dashboard
+- `/manager/clients` - Client management
+- `/manager/drivers` - Driver assignment
+
+## Security Features
+
+- JWT token authentication
+- Role-based access control
+- API rate limiting
+- Input validation and sanitization
+- CSRF protection
+- SQL injection prevention
+
+## Development
+
+### Running Tests
+```bash
+php artisan test
+```
+
+### Queue Processing
+```bash
+php artisan queue:work
+```
+
+### Cache Clear
+```bash
+php artisan optimize:clear
+```
+
+## Project Structure
+
+```
+├── app/
+│   ├── Http/Controllers/          # API and Web controllers
+│   ├── Models/                    # Eloquent models
+│   ├── Jobs/                      # Queue jobs
+│   └── Policies/                  # Authorization policies
+├── database/
+│   ├── migrations/                # Database migrations
+│   └── seeders/                   # Database seeders
+├── resources/js/
+│   ├── Pages/                     # React pages
+│   ├── Components/                # React components
+│   └── Layouts/                   # Page layouts
+├── routes/
+│   ├── web.php                    # Web routes
+│   └── api.php                    # API routes
+└── storage/
+    └── app/public/                # File uploads
+```
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is licensed under the MIT License.
+
+## Support
+
+For support and questions, please contact the development team.
+
+---
+
+**Built with ❤️ using Laravel, Inertia.js, and React**
