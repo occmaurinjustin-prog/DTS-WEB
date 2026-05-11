@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite --host localhost --port 5173",
+        "dev-secure": "vite --host 0.0.0.0 --port 5173"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.1.11",
@@ -19,9 +20,18 @@
     },
     "dependencies": {
         "@inertiajs/react": "^2.0.14",
+        "@mapbox/mapbox-gl-geocoder": "^5.1.2",
         "@vitejs/plugin-react": "^4.6.0",
+        "face-api.js": "^0.22.2",
+        "leaflet": "^1.9.4",
+        "mapbox-gl": "^3.22.0",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "tailwind": "^4.0.0"
+        "react-is": "^19.2.5",
+        "react-leaflet": "^5.0.0",
+        "rechart": "^0.0.1",
+        "recharts": "^3.8.1",
+        "tailwind": "^4.0.0",
+        "ziggy-js": "^2.6.2"
     }
 }

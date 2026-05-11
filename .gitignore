@@ -3,6 +3,8 @@
 .env
 .env.backup
 .env.production
+.env.local
+.env.*.local
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -21,4 +23,25 @@
 /vendor
 Homestead.json
 Homestead.yaml
+Thumbs.db
+
+# Laravel specific
+npm-debug.log
+yarn-error.log
+.php_cs.cache
+.php_cs
+.php_cs.dist
+docker-compose.override.yml
+
+# IDE files
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db

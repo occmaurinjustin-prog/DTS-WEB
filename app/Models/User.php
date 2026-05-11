@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -17,10 +18,23 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    protected $primaryKey = 'user_id';
+    
     protected $fillable = [
-        'name',
-        'email',
+        'username',
         'password',
+        'role',
+        'is_active',
+        'firstname',
+        'middle_name',
+        'lastname',
+        'contact_number',
+        'address',
+        'last_login_at',
+        'extension_no',
+        'assigned_shift',
+        'face_descriptor',
+        'unique_id',
     ];
 
     /**
@@ -43,6 +57,12 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'face_descriptor' => 'array',
         ];
+    }
+
+    public function driver(): HasOne
+    {
+        return $this->hasOne(Driver::class, 'user_id', 'user_id');
     }
 }
