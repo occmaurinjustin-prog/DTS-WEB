@@ -281,7 +281,7 @@ class DriverController extends Controller
             $validated = $request->validate([
                 'truckId' => 'required|integer|exists:trucks,truck_id',
                 'issueTitle' => 'required|string|max:255',
-                'issueDescription' => 'required|string',
+                'issueDescription' => 'required|string|min:10',
                 'priorityLevel' => 'required|in:low,medium,high,emergency',
             ]);
 

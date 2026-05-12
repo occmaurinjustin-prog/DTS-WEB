@@ -13,7 +13,7 @@ return new class extends Migration
             $table->date('repair_date')->nullable();
             $table->time('repair_time')->nullable();
             $table->string('repair_location')->nullable();
-            $table->decimal('estimated_total_cost', 10, 2)->nullable();
+            
             $table->timestamps();
 
             $table->foreign('maintenance_report_id')
