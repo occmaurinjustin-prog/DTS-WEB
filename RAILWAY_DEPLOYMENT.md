@@ -65,7 +65,7 @@ Add these environment variables in Railway:
 - `DB_PASSWORD=${{Mysql.PASSWORD}}`
 
 **Other Variables:**
-- `VITE_MAPBOX_TOKEN=your_mapbox_access_token_here`
+- `VITE_MAPBOX_TOKEN=pk.eyJ1IjoibWF1cmluMTIzNDUiLCJhIjoiY21vNWR0dmhlMWt0ZjJxcXc0MXJ0NzhkMiJ9.KcpKsQHNbDPr5ku9OIK5WA`
 - `SESSION_DRIVER=database`
 - `QUEUE_CONNECTION=database`
 - `CACHE_STORE=database`
