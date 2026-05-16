@@ -167,15 +167,36 @@ class OperationalManagerDashboardController extends Controller
             'truck_id' => 'nullable|exists:trucks,truck_id',
             'item_description' => 'required|string|max:500',
             'weight_tons' => 'required|numeric|min:0.01',
-            'pickup_address' => 'required|string|max:255',
-            'delivery_address' => 'required|string|max:255',
+            'pickup_address' => 'required|string|max:500',
+            'delivery_address' => 'required|string|max:500',
             'priority' => 'required|in:normal,high,urgent',
-            'estimated_delivery_time' => 'required|date',
-            'pickup_latitude' => 'nullable|numeric',
-            'pickup_longitude' => 'nullable|numeric',
-            'delivery_latitude' => 'nullable|numeric',
-            'delivery_longitude' => 'nullable|numeric',
+            'estimated_delivery_date' => 'nullable|date',
+            'notes' => 'nullable|string|max:1000',
+            'pickup_coordinates' => 'nullable|string',
+            'dropoff_coordinates' => 'nullable|string',
         ]);
+
+        // Parse coordinates if provided
+        $pickupLat = null;
+        $pickupLng = null;
+        $deliveryLat = null;
+        $deliveryLng = null;
+
+        if ($validated['pickup_coordinates']) {
+            $coords = explode(',', $validated['pickup_coordinates']);
+            if (count($coords) === 2) {
+                $pickupLat = (float) $coords[0];
+                $pickupLng = (float) $coords[1];
+            }
+        }
+
+        if ($validated['dropoff_coordinates']) {
+            $coords = explode(',', $validated['dropoff_coordinates']);
+            if (count($coords) === 2) {
+                $deliveryLat = (float) $coords[0];
+                $deliveryLng = (float) $coords[1];
+            }
+        }
 
         // Generate unique tracking number
         $trackingNumber = 'DEL' . strtoupper(uniqid());
@@ -191,13 +212,14 @@ class OperationalManagerDashboardController extends Controller
             'item_description' => $validated['item_description'],
             'tracking_number' => $trackingNumber,
             'pickup_address' => $validated['pickup_address'],
-            'pickup_latitude' => $validated['pickup_latitude'],
-            'pickup_longitude' => $validated['pickup_longitude'],
+            'pickup_latitude' => $pickupLat,
+            'pickup_longitude' => $pickupLng,
             'delivery_address' => $validated['delivery_address'],
-            'delivery_latitude' => $validated['delivery_latitude'],
-            'delivery_longitude' => $validated['delivery_longitude'],
+            'delivery_latitude' => $deliveryLat,
+            'delivery_longitude' => $deliveryLng,
             'priority' => $validated['priority'],
-            'estimated_delivery_time' => $validated['estimated_delivery_time'],
+            'estimated_delivery_time' => $validated['estimated_delivery_date'] ?? now()->addDays(3),
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         return redirect()->route('operational_manager.deliveries')->with('success', 'Delivery request sent for approval!');

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { router, Head } from '@inertiajs/react';
+import { router, Head, Link } from '@inertiajs/react';
+import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 // ==================== ICONS ====================
@@ -33,6 +34,77 @@ function Icon({ name, className = 'w-5 h-5' }) {
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d={Icons[name]} />
         </svg>
+    );
+}
+
+// Logout Button Component with Confirmation
+function LogoutButton() {
+    const [showConfirm, setShowConfirm] = useState(false);
+
+    const handleLogoutClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowConfirm(true);
+    };
+
+    const handleCancel = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowConfirm(false);
+    };
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={handleLogoutClick}
+                className="text-gray-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                title="Logout"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </button>
+
+            {/* Logout Confirmation Modal */}
+            {showConfirm && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCancel} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">Confirm Logout</h3>
+                                <p className="text-sm text-gray-500">Are you sure you want to logout?</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <Link
+                                href="/logout"
+                                method="post"
+                                as="button"
+                                type="button"
+                                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold"
+                            >
+                                Logout
+                            </Link>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
     );
 }
 
@@ -99,6 +171,7 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
                         <p className="text-white text-sm font-medium truncate">Administrator</p>
                         <p className="text-gray-400 text-xs truncate">System Admin</p>
                     </div>
+                    <LogoutButton />
                 </div>
                 <div className="mt-4 flex items-center gap-2 px-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -456,29 +529,40 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
                                 }} />
                             </div>
 
-                            {/* Quick Stats Panel */}
+                            {/* Maintenance Information Panel */}
                             <div className="col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-200/60">
-                                <h3 className="text-sm font-semibold text-slate-900 mb-4">Quick Overview</h3>
+                                <h3 className="text-sm font-semibold text-slate-900 mb-4">Maintenance Overview</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-50 rounded-xl">
-                                        <p className="text-xs text-slate-500 mb-1">Available Trucks</p>
-                                        <p className="text-2xl font-bold text-slate-900">{stats?.available_trucks || 0}</p>
+                                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                                        <p className="text-xs text-amber-600 mb-1">Pending Maintenance</p>
+                                        <p className="text-2xl font-bold text-amber-700">{stats?.pending_maintenance || 0}</p>
+                                        <p className="text-xs text-amber-500 mt-1">Requires attention</p>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-xl">
-                                        <p className="text-xs text-slate-500 mb-1">Active Drivers</p>
-                                        <p className="text-2xl font-bold text-slate-900">{stats?.active_drivers || 0}</p>
+                                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                        <p className="text-xs text-blue-600 mb-1">In Progress</p>
+                                        <p className="text-2xl font-bold text-blue-700">{stats?.in_progress_maintenance || 0}</p>
+                                        <p className="text-xs text-blue-500 mt-1">Currently being serviced</p>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-xl">
-                                        <p className="text-xs text-slate-500 mb-1">Today's Deliveries</p>
-                                        <p className="text-2xl font-bold text-slate-900">{stats?.today_deliveries || 0}</p>
+                                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                                        <p className="text-xs text-emerald-600 mb-1">Completed Today</p>
+                                        <p className="text-2xl font-bold text-emerald-700">{stats?.completed_maintenance_today || 0}</p>
+                                        <p className="text-xs text-emerald-500 mt-1">Successfully resolved</p>
                                     </div>
-                                    <div className="p-4 bg-slate-50 rounded-xl">
-                                        <p className="text-xs text-slate-500 mb-1">Completion Rate</p>
-                                        <p className="text-2xl font-bold text-emerald-600">
-                                            {stats?.total_deliveries > 0 
-                                                ? Math.round((stats?.delivered_deliveries / stats?.total_deliveries) * 100) 
-                                                : 0}%
-                                        </p>
+                                    <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+                                        <p className="text-xs text-red-600 mb-1">Urgent Repairs</p>
+                                        <p className="text-2xl font-bold text-red-700">{stats?.urgent_repairs || 0}</p>
+                                        <p className="text-xs text-red-500 mt-1">Immediate action needed</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Icon name="truck" className="w-4 h-4 text-slate-500" />
+                                            <span className="text-xs text-slate-600">Fleet Status</span>
+                                        </div>
+                                        <span className="text-xs font-medium text-slate-900">
+                                            {stats?.total_trucks || 0} Total • {stats?.available_trucks || 0} Available
+                                        </span>
                                     </div>
                                 </div>
                             </div>

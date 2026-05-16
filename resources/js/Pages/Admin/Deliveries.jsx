@@ -9,6 +9,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
     const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'all'
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [sentToDriver, setSentToDriver] = useState(new Set()); // Track deliveries sent to driver
 
     // Auto-refresh every 5 seconds for real-time updates
     useEffect(() => {
@@ -87,6 +88,8 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
+                    // Add to sent to driver tracking
+                    setSentToDriver(prev => new Set([...prev, delivery.delivery_id]));
                     setShowDetailModal(false);
                     setTimeout(() => setSelectedDelivery(null), 300);
                 },
@@ -634,15 +637,27 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                     )}
                                     {selectedDelivery.delivery_status !== 'pending' && selectedDelivery.delivery_status !== 'cancelled' && (
                                         <>
-                                            <button 
-                                                onClick={() => handleSendToDriver(selectedDelivery)}
-                                                className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
-                                            >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                </svg>
-                                                Send to Driver
-                                            </button>
+                                            {sentToDriver.has(selectedDelivery.delivery_id) ? (
+                                                <button 
+                                                    disabled
+                                                    className="px-4 py-2 bg-gray-400 text-white text-xs font-medium rounded-lg cursor-not-allowed opacity-75 flex items-center gap-1.5"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Already Sent
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => handleSendToDriver(selectedDelivery)}
+                                                    className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                    </svg>
+                                                    Send to Driver
+                                                </button>
+                                            )}
                                             <button 
                                                 onClick={closeDetailModal}
                                                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"

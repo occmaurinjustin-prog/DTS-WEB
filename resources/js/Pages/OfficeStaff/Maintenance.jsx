@@ -360,12 +360,15 @@ function ViewModal({ isOpen, onClose, report }) {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-500">Driver</label>
                                     <p className="text-base font-medium text-gray-900">
-                                        {report.driver?.user?.name || `DRV-${report.driver_id}`}
+                                        {report.driver?.user?.first_name && report.driver?.user?.last_name 
+                                            ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
+                                            : report.driver?.user?.name || `DRV-${report.driver_id}`
+                                        }
                                     </p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Truck ID</label>
-                                    <p className="text-base font-medium text-gray-900">{report.truck_id}</p>
+                                    <label className="block text-sm font-medium text-gray-500">Vehicle Type</label>
+                                    <p className="text-base font-medium text-gray-900">{report.truck?.vehicle_type || 'Unknown'}</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-500">Priority</label>
@@ -477,14 +480,17 @@ function Step1ReportDetails({ report }) {
             <div className="bg-white border border-gray-200 rounded-xl p-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">Driver ID</label>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Driver</label>
                         <p className="text-lg font-medium text-gray-900">
-                            {report.driver?.user?.name || `DRV-${report.driver_id}`}
+                            {report.driver?.user?.first_name && report.driver?.user?.last_name 
+                                ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
+                                : report.driver?.user?.name || `DRV-${report.driver_id}`
+                            }
                         </p>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-500 mb-1">Truck ID</label>
-                        <p className="text-lg font-medium text-gray-900">{report.truck_id || `TRK-${report.truck_id}`}</p>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Vehicle Type</label>
+                        <p className="text-lg font-medium text-gray-900">{report.truck?.vehicle_type || 'Unknown'}</p>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Priority</label>
@@ -747,12 +753,15 @@ function Step4Review({ report, selectedParts, scheduleData }) {
                         <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Driver</span>
                             <span className="text-sm font-medium text-gray-900">
-                                {report.driver?.user?.name || `DRV-${report.driver_id}`}
+                                {report.driver?.user?.first_name && report.driver?.user?.last_name 
+                                    ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
+                                    : report.driver?.user?.name || `DRV-${report.driver_id}`
+                                }
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Truck</span>
-                            <span className="text-sm font-medium text-gray-900">{report.truck_id}</span>
+                            <span className="text-sm text-gray-600">Vehicle Type</span>
+                            <span className="text-sm font-medium text-gray-900">{report.truck?.vehicle_type || 'Unknown'}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Issue</span>
@@ -1024,8 +1033,8 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
                                     <thead>
                                         <tr className="border-b border-slate-200 bg-slate-50/50">
                                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Report ID</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Driver ID</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Truck ID</th>
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Driver</th>
+                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Vehicle Type</th>
                                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Issue Details</th>
                                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Priority</th>
                                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Status</th>
@@ -1040,10 +1049,13 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
                                                     #{report.id}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-600">
-                                                    {report.driver?.user?.name || `DRV-${report.driver_id}`}
+                                                    {report.driver?.user?.first_name && report.driver?.user?.last_name 
+                                                        ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
+                                                        : report.driver?.user?.name || `DRV-${report.driver_id}`
+                                                    }
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-600">
-                                                    {report.truck_id || `TRK-${report.truck_id}`}
+                                                    {report.truck?.vehicle_type || 'Unknown'}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm font-light text-slate-700">
                                                     <div className="max-w-xs">

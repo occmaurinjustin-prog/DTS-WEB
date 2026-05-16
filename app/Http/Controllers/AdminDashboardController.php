@@ -13,20 +13,39 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
+        // Get today's date for filtering
+        $today = now()->startOfDay();
+        
+        // Maintenance statistics
+        $maintenanceStats = [
+            'pending_maintenance' => \App\Models\MaintenanceReport::where('status', 'pending')->count(),
+            'in_progress_maintenance' => \App\Models\MaintenanceReport::where('status', 'in_progress')->count(),
+            'completed_maintenance_today' => \App\Models\MaintenanceReport::where('status', 'completed')
+                ->where('updated_at', '>=', $today)->count(),
+            'urgent_repairs' => \App\Models\MaintenanceReport::where('priority_level', 'urgent')
+                ->where('status', '!=', 'completed')->count(),
+        ];
+
         $stats = [
             'total_users' => User::count(),
             'total_admins' => User::where('role', 'admin')->count(),
             'total_clients' => Client::count(),
             'total_drivers' => Driver::count(),
+            'active_drivers' => Driver::where('availability_status', 'available')->count(),
             'total_trucks' => \App\Models\Truck::count(),
             'available_trucks' => \App\Models\Truck::where('truck_status', 'available')->count(),
             'total_deliveries' => Delivery::count(),
             'pending_deliveries' => Delivery::where('delivery_status', 'pending')->count(),
             'in_transit_deliveries' => Delivery::where('delivery_status', 'in_transit')->count(),
             'delivered_deliveries' => Delivery::where('delivery_status', 'delivered')->count(),
+            'cancelled_deliveries' => Delivery::where('delivery_status', 'cancelled')->count(),
+            'today_deliveries' => Delivery::where('created_at', '>=', $today)->count(),
             'total_inquiries' => 0, // Inquiries table deleted
             'open_inquiries' => 0,
         ];
+
+        // Merge maintenance stats with main stats
+        $stats = array_merge($stats, $maintenanceStats);
 
         $recentDeliveries = Delivery::with(['client', 'driver.user'])
             ->orderBy('created_at', 'desc')
@@ -204,5 +223,164 @@ class AdminDashboardController extends Controller
             'pendingDeliveries' => $pendingDeliveries,
             'drivers' => $drivers,
         ]);
+    }
+
+    public function reports(Request $request)
+    {
+        $dateRange = $request->get('dateRange', 'today');
+        $dateFilter = $this->getDateFilter($dateRange);
+
+        // Get delivery statistics
+        $deliveryQuery = Delivery::where(function($query) use ($dateFilter) {
+            if ($dateFilter) {
+                $query->where('created_at', '>=', $dateFilter);
+            }
+        });
+
+        $deliveryStats = [
+            'total' => $deliveryQuery->count(),
+            'completed' => $deliveryQuery->where('delivery_status', 'delivered')->count(),
+            'pending' => $deliveryQuery->where('delivery_status', 'pending')->count(),
+            'in_transit' => $deliveryQuery->where('delivery_status', 'in_transit')->count(),
+            'assigned' => $deliveryQuery->where('delivery_status', 'assigned')->count(),
+        ];
+
+        // Get driver statistics
+        $driverStats = [
+            'total' => Driver::count(),
+            'active' => Driver::where('availability_status', 'available')->count(),
+            'on_leave' => Driver::where('availability_status', 'on_leave')->count(),
+            'busy' => Driver::where('availability_status', 'busy')->count(),
+        ];
+
+        // Get truck statistics
+        $truckStats = [
+            'total' => \App\Models\Truck::count(),
+            'available' => \App\Models\Truck::where('truck_status', 'available')->count(),
+            'in_maintenance' => \App\Models\Truck::where('truck_status', 'in_maintenance')->count(),
+            'in_use' => \App\Models\Truck::where('truck_status', 'in_use')->count(),
+        ];
+
+        // Get maintenance statistics
+        $maintenanceQuery = \App\Models\MaintenanceReport::where(function($query) use ($dateFilter) {
+            if ($dateFilter) {
+                $query->where('created_at', '>=', $dateFilter);
+            }
+        });
+
+        $maintenanceStats = [
+            'total' => \App\Models\Maintenance::count(),
+            'completed' => $maintenanceQuery->where('status', 'completed')->count(),
+            'pending' => $maintenanceQuery->where('status', 'pending')->count(),
+            'in_progress' => $maintenanceQuery->where('status', 'in_progress')->count(),
+        ];
+
+        // Get user statistics
+        $userStats = [
+            'total' => User::count(),
+            'admins' => User::where('role', 'admin')->count(),
+            'office_staff' => User::where('role', 'office_staff')->count(),
+            'operation_managers' => User::where('role', 'operation_manager')->count(),
+        ];
+
+        // Get real delivery data for reports
+        $deliveryData = Delivery::with(['client', 'driver.user'])
+            ->where(function($query) use ($dateFilter) {
+                if ($dateFilter) {
+                    $query->where('created_at', '>=', $dateFilter);
+                }
+            })
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($delivery) {
+                return [
+                    'id' => $delivery->delivery_id,
+                    'tracking_number' => $delivery->tracking_number,
+                    'customer' => $delivery->client ? $delivery->client->client_name : 'Unknown',
+                    'status' => $delivery->delivery_status,
+                    'pickup_address' => $delivery->pickup_address,
+                    'destination_address' => $delivery->delivery_address,
+                    'created_at' => $delivery->created_at->format('Y-m-d'),
+                    'weight' => $delivery->weight_tons,
+                    'driver' => $delivery->driver ? $delivery->driver->user->name : 'Unassigned',
+                ];
+            });
+
+        // Get real maintenance data for reports
+        $maintenanceData = \App\Models\MaintenanceReport::with(['maintenance'])
+            ->where(function($query) use ($dateFilter) {
+                if ($dateFilter) {
+                    $query->where('created_at', '>=', $dateFilter);
+                }
+            })
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($report) {
+                // Get parts from inventory if there's a relationship
+                $partsList = 'No parts recorded';
+                
+                // Try to get parts from different possible relationships
+                if (isset($report->parts_used) && $report->parts_used) {
+                    $partsList = $report->parts_used;
+                } elseif ($report->maintenance && isset($report->maintenance->parts_used) && $report->maintenance->parts_used) {
+                    $partsList = $report->maintenance->parts_used;
+                } elseif ($report->maintenance && $report->maintenance->inventory && $report->maintenance->inventory->isNotEmpty()) {
+                    $partsList = $report->maintenance->inventory->pluck('part_name')->implode(', ');
+                }
+                
+                // Get truck information directly from truck_id
+                $truckPlate = 'Unknown';
+                $vehicleType = 'Unknown';
+                if ($report->truck_id) {
+                    $truck = \App\Models\Truck::find($report->truck_id);
+                    $truckPlate = $truck ? $truck->plate_number : 'Unknown';
+                    $vehicleType = $truck ? $truck->vehicle_type : 'Unknown';
+                }
+                
+                return [
+                    'id' => $report->id,
+                    'report_id' => 'RPT-' . $report->id,
+                    'truck_id' => $report->truck_id ?? 'Unknown',
+                    'truck_plate' => $truckPlate,
+                    'vehicle_type' => $vehicleType,
+                    'issue_title' => $report->issue_title ?? 'General Maintenance',
+                    'parts_used' => $partsList ?: 'No parts recorded',
+                    'status' => $report->status ?? 'pending',
+                    'report_date' => $report->created_at->format('Y-m-d'),
+                    'description' => $report->description ?? 'No description',
+                ];
+            });
+
+        return inertia('Admin/Reports', [
+            'authUser' => Auth::user(),
+            'deliveryStats' => $deliveryStats,
+            'driverStats' => $driverStats,
+            'truckStats' => $truckStats,
+            'maintenanceStats' => $maintenanceStats,
+            'userStats' => $userStats,
+            'deliveryData' => $deliveryData,
+            'maintenanceData' => $maintenanceData,
+        ]);
+    }
+
+    /**
+     * Get date filter based on selected range
+     */
+    private function getDateFilter($range)
+    {
+        $now = now();
+        
+        switch ($range) {
+            case 'today':
+                return $now->startOfDay();
+            case 'week':
+                return $now->startOfWeek();
+            case 'month':
+                return $now->startOfMonth();
+            case 'year':
+                return $now->startOfYear();
+            default:
+                return null;
+        }
     }
 }

@@ -19,8 +19,10 @@ class TruckController extends Controller
             ->map(function ($driver) {
                 return [
                     'driver_id' => $driver->driver_id,
+                    'first_name' => $driver->user ? $driver->user->firstname : 'Unknown',
+                    'last_name' => $driver->user ? $driver->user->lastname : 'Unknown',
                     'name' => $driver->user ? $driver->user->name : 'Unknown',
-                    'license_no' => $driver->license_no,
+                    'debug_user' => $driver->user ? 'User exists' : 'User null',
                 ];
             });
         

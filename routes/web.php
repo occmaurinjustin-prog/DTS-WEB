@@ -48,6 +48,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Routes tracking page
         Route::get('/routes', [AdminDashboardController::class, 'routes'])->name('routes');
         
+        // Reports page
+        Route::get('/reports', [AdminDashboardController::class, 'reports'])->name('reports');
+        
         // User management routes
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
         Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
@@ -108,6 +111,24 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         Route::get('/drivers', [OperationalManagerDashboardController::class, 'drivers'])->name('drivers');
         Route::get('/clients', [OperationalManagerDashboardController::class, 'clients'])->name('clients');
         Route::get('/deliveries', [OperationalManagerDashboardController::class, 'deliveries'])->name('deliveries');
+        Route::get('/deliveries/create', function () {
+            // Get clients for dropdown
+            $clients = \App\Models\Client::orderBy('client_name')->get();
+            
+            // Get available drivers for dropdown (only 'available' status)
+            $drivers = \App\Models\Driver::with('user', 'truck')
+                ->where('availability_status', 'available')
+                ->get();
+            
+            // Get available trucks for dropdown
+            $trucks = \App\Models\Truck::orderBy('plate_number')->get();
+            
+            return inertia('OperationalManager/CreateDelivery', [
+                'clients' => $clients,
+                'drivers' => $drivers,
+                'trucks' => $trucks,
+            ]);
+        })->name('deliveries.create');
         Route::post('/deliveries', [OperationalManagerDashboardController::class, 'storeDelivery'])->name('deliveries.store');
         Route::get('/recent-deliveries', [OperationalManagerDashboardController::class, 'recentDeliveries'])->name('recent_deliveries');
         Route::get('/profile', [OperationalManagerDashboardController::class, 'profile'])->name('profile');

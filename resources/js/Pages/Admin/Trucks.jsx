@@ -594,7 +594,7 @@ export default function Trucks({ trucks, authUser, pendingDeliveries = 0, availa
                                             <option value="">Choose driver...</option>
                                             {availableDrivers.map((driver) => (
                                                 <option key={driver.driver_id} value={driver.driver_id}>
-                                                    {driver.name} ({driver.license_no})
+                                                    {driver.first_name} {driver.last_name}
                                                 </option>
                                             ))}
                                         </select>

@@ -157,6 +157,7 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
                         <p className="text-white text-sm font-medium truncate">Administrator</p>
                         <p className="text-gray-400 text-xs truncate">System Admin</p>
                     </div>
+                    <LogoutButton />
                 </div>
                 <div className="mt-4 flex items-center gap-2 px-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
