@@ -33,7 +33,7 @@ class OperationalManagerDashboardController extends Controller
             ->get()
             ->map(function ($delivery) {
                 return [
-                    'id' => '#' . $delivery->tracking_number,
+                    'id' => '#' . $delivery->waybill,
                     'customer' => $delivery->client?->client_name ?? 'Unknown',
                     'delivery_status' => $delivery->delivery_status,
                     'date' => $delivery->created_at->format('Y-m-d'),
@@ -166,6 +166,7 @@ class OperationalManagerDashboardController extends Controller
             'driver_id' => 'required|exists:drivers,driver_id',
             'truck_id' => 'nullable|exists:trucks,truck_id',
             'item_description' => 'required|string|max:500',
+            'waybill' => 'required|string|max:50',
             'weight_tons' => 'required|numeric|min:0.01',
             'pickup_address' => 'required|string|max:500',
             'delivery_address' => 'required|string|max:500',
@@ -198,9 +199,6 @@ class OperationalManagerDashboardController extends Controller
             }
         }
 
-        // Generate unique tracking number
-        $trackingNumber = 'DEL' . strtoupper(uniqid());
-
         // Create delivery with status 'pending' (waiting for admin approval)
         \App\Models\Delivery::create([
             'user_id' => $userId,
@@ -210,7 +208,7 @@ class OperationalManagerDashboardController extends Controller
             'status' => 'pending',
             'weight_tons' => $validated['weight_tons'],
             'item_description' => $validated['item_description'],
-            'tracking_number' => $trackingNumber,
+            'waybill' => $validated['waybill'],
             'pickup_address' => $validated['pickup_address'],
             'pickup_latitude' => $pickupLat,
             'pickup_longitude' => $pickupLng,
@@ -223,6 +221,56 @@ class OperationalManagerDashboardController extends Controller
         ]);
 
         return redirect()->route('operational_manager.deliveries')->with('success', 'Delivery request sent for approval!');
+    }
+    public function apiDeliveries(Request $request)
+    {
+        $user = Auth::user();
+        
+        $userId = $user->user_id;
+
+        $query = \App\Models\Delivery::with(['client', 'driver.user', 'truck', 'user'])
+            ->where('user_id', $userId)
+            ->latest();
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('waybill', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('client', function ($q) use ($searchTerm) {
+                      $q->where('client_name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('driver.user', function ($q) use ($searchTerm) {
+                      $q->where('firstname', 'like', "%{$searchTerm}%")
+                        ->orWhere('lastname', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('delivery_status', $request->status);
+        }
+
+        $deliveries = $query->paginate(10);
+
+        $stats = [
+            'total' => \App\Models\Delivery::where('user_id', $userId)->count(),
+            'delivered' => \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'delivered')->count(),
+            'in_transit' => \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'in_transit')->count(),
+            'pending' => \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'pending')->count(),
+            'approved' => \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'approved')->count(),
+            'cancelled' => \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'cancelled')->count(),
+        ];
+
+        return response()->json([
+            'deliveries' => $deliveries->items(),
+            'meta' => [
+                'current_page' => $deliveries->currentPage(),
+                'last_page' => $deliveries->lastPage(),
+                'per_page' => $deliveries->perPage(),
+                'total' => $deliveries->total(),
+            ],
+            'stats' => $stats,
+        ]);
     }
 
     public function addClient(Request $request)

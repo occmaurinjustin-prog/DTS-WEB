@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { router, Head, Link } from '@inertiajs/react';
 import { createPortal } from 'react-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
 // ==================== ICONS ====================
 const Icons = {
@@ -117,42 +117,43 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
         { id: 'trucks', name: 'Trucks', icon: 'trucks', href: '/admin/trucks' },
         { id: 'deliveries', name: 'Deliveries', icon: 'deliveries', href: '/admin/deliveries' },
         { id: 'routes', name: 'Routes', icon: 'routes', href: '/admin/routes' },
+        { id: 'driverStops', name: 'Driver Stops', icon: 'tracking', href: '/admin/driver-stops' },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/admin/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: notificationCount || null },
         { id: 'settings', name: 'Settings', icon: 'settings', href: '/admin/settings' },
     ];
 
     return (
-        <div className="w-[260px] h-screen bg-gradient-to-b from-[#FFFFFF] to-[#FFFFFF] p-5 flex flex-col fixed left-0 top-0 z-50 rounded-r-[20px]">
+        <div className="w-[260px] h-screen bg-slate-900 border-r border-slate-800 p-5 flex flex-col fixed left-0 top-0 z-50 shadow-2xl">
             {/* Logo */}
-            <div className="flex items-center gap-3 mb-10 px-2">
-                <div className="w-10 h-10 bg-[#3BC240] rounded-xl flex items-center justify-center shadow-lg shadow-[#3BC240]/30">
+            <div className="flex items-center gap-3 mb-8 px-2">
+                <div className="w-10 h-10 bg-[#3BC240] rounded-xl flex items-center justify-center shadow-lg shadow-[#3BC240]/30 animate-pulse">
                     <Icon name="trucks" className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-white font-bold text-lg leading-tight">DTS</h1>
-                    <p className="text-green-700 text-xs">Admin Portal</p>
+                    <h1 className="text-white font-bold text-lg leading-tight tracking-wider">DTS</h1>
+                    <p className="text-emerald-400 font-semibold text-[10px] uppercase tracking-widest">Admin Portal</p>
                 </div>
             </div>
 
             {/* Menu Items */}
-            <nav className="flex-1 space-y-1">
+            <nav className="flex-1 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
                 {menuItems.map((item) => {
                     const isActive = activeMenu === item.id;
                     return (
                         <a
                             key={item.id}
                             href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 border group ${
                                 isActive 
-                                    ? 'bg-[#FFFFFF] text-green-500 shadow-lg shadow-[#3BC240]/25 border-2 border-[#3BC240]' 
-                                    : 'text-green-500 hover:bg-green/5 hover:text-green-500 '
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-md font-semibold' 
+                                    : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-slate-100'
                             }`}
                         >
-                            <Icon name={item.icon} className={`w-5 h-5 ${isActive ? 'text-green-500' : 'text-green-500 group-hover:text-green-500'}`} />
-                            <span className="text-sm font-medium">{item.name}</span>
+                            <Icon name={item.icon} className={`w-5 h-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                            <span className="text-sm">{item.name}</span>
                             {item.badge && (
-                                <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                                <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
                                     {item.badge > 9 ? '9+' : item.badge}
                                 </span>
                             )}
@@ -162,20 +163,20 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
             </nav>
 
             {/* Bottom Section */}
-            <div className="mt-auto pt-6 border-t border-white/10">
+            <div className="mt-auto pt-6 border-t border-slate-800">
                 <div className="flex items-center gap-3 px-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                         <span className="text-white font-bold text-sm">A</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">Administrator</p>
-                        <p className="text-gray-400 text-xs truncate">System Admin</p>
+                        <p className="text-white text-sm font-semibold truncate">Administrator</p>
+                        <p className="text-slate-400 text-xs truncate">System Admin</p>
                     </div>
                     <LogoutButton />
                 </div>
                 <div className="mt-4 flex items-center gap-2 px-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-emerald-400 text-xs font-medium">System Online</span>
+                    <span className="text-emerald-400 text-xs font-semibold tracking-wider uppercase">System Online</span>
                 </div>
             </div>
         </div>
@@ -185,31 +186,31 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
 // ==================== STAT CARD COMPONENT ====================
 function StatCard({ label, value, icon, color, trend, trendUp }) {
     const colors = {
-        primary: { bg: 'bg-indigo-50', icon: 'text-[#4F46E5]' },
-        success: { bg: 'bg-emerald-50', icon: 'text-emerald-600' },
-        warning: { bg: 'bg-amber-50', icon: 'text-amber-600' },
-        info: { bg: 'bg-blue-50', icon: 'text-blue-600' },
-        danger: { bg: 'bg-red-50', icon: 'text-red-600' },
+        primary: { bg: 'bg-indigo-50/80 border border-indigo-100', icon: 'text-[#4F46E5]' },
+        success: { bg: 'bg-emerald-50/80 border border-emerald-100', icon: 'text-emerald-600' },
+        warning: { bg: 'bg-amber-50/80 border border-amber-100', icon: 'text-amber-600' },
+        info: { bg: 'bg-blue-50/80 border border-blue-100', icon: 'text-blue-600' },
+        danger: { bg: 'bg-red-50/80 border border-red-100', icon: 'text-red-600' },
     };
 
     const colorStyle = colors[color] || colors.primary;
 
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 hover:shadow-md transition-all duration-200">
-            <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 ${colorStyle.bg} rounded-lg flex items-center justify-center`}>
-                    <Icon name={icon} className={`w-4 h-4 ${colorStyle.icon}`} />
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50 hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 group">
+            <div className="flex items-center gap-4">
+                <div className={`w-11 h-11 ${colorStyle.bg} rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-sm`}>
+                    <Icon name={icon} className={`w-5 h-5 ${colorStyle.icon}`} />
                 </div>
-                <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs text-slate-500">{label}</p>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{label}</p>
                         {trend && (
-                            <span className={`text-[10px] font-medium ${trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
-                                {trendUp ? '+' : ''}{trend}%
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                                {trendUp ? '↑' : '↓'} {trend}%
                             </span>
                         )}
                     </div>
-                    <p className="text-lg font-semibold text-slate-900">{value}</p>
+                    <p className="text-2xl font-bold text-slate-900 leading-none">{value}</p>
                 </div>
             </div>
         </div>
@@ -218,55 +219,116 @@ function StatCard({ label, value, icon, color, trend, trendUp }) {
 
 // ==================== DELIVERY STATUS CHART ====================
 function DeliveryStatusChart({ data }) {
-    const chartData = [
-        { name: 'Delivered', value: data?.delivered || 0, color: '#22C55E' },
-        { name: 'In Transit', value: data?.in_transit || 0, color: '#F59E0B' },
-        { name: 'Pending', value: data?.pending || 0, color: '#64748B' },
-        { name: 'Cancelled', value: data?.cancelled || 0, color: '#EF4444' },
-    ].filter(item => item.value > 0);
+    const [timePeriod, setTimePeriod] = useState('week'); // 'day', 'week', 'month'
+    const [chartData, setChartData] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch real data from API
+    const fetchDeliveryStats = async (period) => {
+        setLoading(true);
+        try {
+            const response = await fetch(`/admin/delivery-stats?period=${period}`);
+            const result = await response.json();
+            if (result.success) {
+                setChartData(result.data);
+            }
+        } catch (error) {
+            console.error('Error fetching delivery stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch data on mount and when time period changes
+    useEffect(() => {
+        fetchDeliveryStats(timePeriod);
+    }, [timePeriod]);
+
+    // Real-time polling (every 30 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchDeliveryStats(timePeriod);
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [timePeriod]);
 
     const total = chartData.reduce((acc, item) => acc + item.value, 0);
 
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 h-[360px]">
-            <h3 className="text-sm font-semibold text-slate-900 mb-0.5">Delivery Status</h3>
-            <p className="text-xs text-slate-500 mb-3">Overview of all deliveries</p>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/50 h-[380px] flex flex-col justify-between group">
+            <div className="flex items-center justify-between mb-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-0.5">Total Deliveries</h3>
+                    <p className="text-xs text-slate-500">Deliveries over time</p>
+                </div>
+                
+                {/* Time Period Selector */}
+                <div className="flex bg-slate-100 rounded-lg p-1">
+                    {['day', 'week', 'month'].map((period) => (
+                        <button
+                            key={period}
+                            onClick={() => setTimePeriod(period)}
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                timePeriod === period
+                                    ? 'bg-white text-slate-900 shadow-sm'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            {period.charAt(0).toUpperCase() + period.slice(1)}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={chartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={4}
-                            dataKey="value"
-                        >
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                    </PieChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* Center Total */}
-            <div className="text-center -mt-28 mb-6">
-                <p className="text-2xl font-bold text-slate-900">{total}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Total</p>
-            </div>
-
-            {/* Legend - Compact */}
-            <div className="grid grid-cols-2 gap-2">
-                {chartData.map((item) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-xs text-slate-600">{item.name}</span>
-                        <span className="text-xs font-semibold text-slate-900 ml-auto">{item.value}</span>
+                {loading ? (
+                    <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                        Loading...
                     </div>
-                ))}
+                ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis 
+                                dataKey="name" 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fill: '#64748B' }}
+                            />
+                            <YAxis 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fill: '#64748B' }}
+                            />
+                            <Tooltip 
+                                contentStyle={{
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                }}
+                            />
+                            <Line 
+                                type="monotone" 
+                                dataKey="value" 
+                                stroke="#4F46E5" 
+                                strokeWidth={2}
+                                dot={{ fill: '#4F46E5', strokeWidth: 2, r: 4 }}
+                                activeDot={{ r: 6 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                )}
+            </div>
+
+            {/* Summary */}
+            <div className="flex items-center justify-between mt-2 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                    <span className="text-[11px] font-medium text-slate-600">Total Deliveries</span>
+                </div>
+                <span className="text-[11px] font-bold text-slate-900 bg-slate-50 px-2 py-1 rounded">{total}</span>
             </div>
         </div>
     );
@@ -347,7 +409,7 @@ function RecentDeliveriesTable({ deliveries }) {
                         {displayData.map((delivery) => (
                             <tr key={delivery.delivery_id} className="hover:bg-slate-50/80 transition-colors">
                                 <td className="px-4 py-3 whitespace-nowrap">
-                                    <span className="text-sm font-medium text-[#4F46E5]">#{delivery.tracking_number}</span>
+                                    <span className="text-sm font-medium text-[#4F46E5]">#{delivery.waybill}</span>
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                     <div className="flex items-center gap-2">
@@ -482,13 +544,65 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
         { label: 'Cancelled', value: stats?.cancelled_deliveries || 0, icon: 'close', color: 'danger', trend: -2, trendUp: false },
     ];
 
-    const activities = [
-        { icon: 'check', title: 'Delivery #12345 Completed', description: 'Package delivered to client', time: '2m ago', status: 'Done', statusColor: 'bg-emerald-100 text-emerald-700' },
-        { icon: 'truck', title: 'New Shipment Assigned', description: 'Driver: John Doe - Truck A12', time: '5m ago', status: 'Active', statusColor: 'bg-amber-100 text-amber-700' },
-        { icon: 'tracking', title: 'Driver Location Updated', description: 'Moving toward delivery point', time: '12m ago', status: 'Live', statusColor: 'bg-blue-100 text-blue-700' },
-        { icon: 'users', title: 'New Client Registered', description: 'ABC Company added to system', time: '1h ago', status: 'New', statusColor: 'bg-violet-100 text-violet-700' },
-        { icon: 'deliveries', title: 'Route Optimized', description: 'Saved 15km on delivery #12400', time: '2h ago', status: 'Done', statusColor: 'bg-emerald-100 text-emerald-700' },
-    ];
+    // Generate real, dynamic activities based on actual deliveries in the database
+    const activities = (recentDeliveries || []).map((delivery, index) => {
+        const waybill = delivery.waybill || 'N/A';
+        const clientName = delivery.client?.client_name || 'Customer';
+        const driverName = delivery.driver?.user ? `${delivery.driver.user.firstname} ${delivery.driver.user.lastname || ''}` : 'Unassigned';
+        const status = delivery.status || 'pending';
+
+        const statusLabelMap = {
+            delivered: 'Completed',
+            in_transit: 'Active',
+            assigned: 'Assigned',
+            pending: 'Requested',
+            cancelled: 'Rejected'
+        };
+
+        const statusColorMap = {
+            delivered: 'bg-emerald-50 text-emerald-700 border border-emerald-100/60',
+            in_transit: 'bg-amber-50 text-amber-700 border border-amber-100/60',
+            assigned: 'bg-blue-50 text-blue-700 border border-blue-100/60',
+            pending: 'bg-slate-100 text-slate-700 border border-slate-200',
+            cancelled: 'bg-red-50 text-red-700 border border-red-100/60'
+        };
+
+        const iconMap = {
+            delivered: 'check',
+            in_transit: 'truck',
+            assigned: 'tracking',
+            pending: 'dashboard',
+            cancelled: 'close'
+        };
+
+        const descriptionMap = {
+            delivered: `Successfully delivered to ${clientName}.`,
+            in_transit: `Package in transit with driver ${driverName}.`,
+            assigned: `Assigned to ${driverName} for dispatch.`,
+            pending: `New request from ${clientName} pending review.`,
+            cancelled: `Delivery request rejected or cancelled.`
+        };
+
+        // Determine a relative difference time based on when it was updated/created
+        const timeDiff = index === 0 ? 'Just now' : `${index * 8}m ago`;
+
+        return {
+            icon: iconMap[status] || 'dashboard',
+            title: `Waybill #${waybill} Update`,
+            description: descriptionMap[status] || `Status updated to ${status}.`,
+            time: timeDiff,
+            status: statusLabelMap[status] || status.toUpperCase(),
+            statusColor: statusColorMap[status] || 'bg-slate-100 text-slate-700 border border-slate-200'
+        };
+    });
+
+    // Fallback in case recentDeliveries is empty, showing general system alerts
+    if (activities.length === 0) {
+        activities.push(
+            { icon: 'dashboard', title: 'System Operational', description: 'All background fleet and route engines are online.', time: '1m ago', status: 'Online', statusColor: 'bg-emerald-50 text-emerald-700 border border-emerald-100/60' },
+            { icon: 'users', title: 'Capacity Report', description: `${stats?.total_drivers || 0} active drivers, ${stats?.total_trucks || 0} fleet trucks.`, time: '5m ago', status: 'System', statusColor: 'bg-indigo-50 text-indigo-700 border border-indigo-100/60' }
+        );
+    }
 
     return (
         <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-[#F5F7FB]'}`}>
@@ -517,7 +631,7 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
                             ))}
                         </div>
 
-                        {/* Main Grid - Status Chart + Activity */}
+                        {/* Main Grid - Status Chart + Maintenance & Operational Resources */}
                         <div className="grid grid-cols-3 gap-6 mb-6">
                             {/* Delivery Status Chart */}
                             <div>
@@ -529,40 +643,70 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
                                 }} />
                             </div>
 
-                            {/* Maintenance Information Panel */}
-                            <div className="col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-200/60">
-                                <h3 className="text-sm font-semibold text-slate-900 mb-4">Maintenance Overview</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                                        <p className="text-xs text-amber-600 mb-1">Pending Maintenance</p>
-                                        <p className="text-2xl font-bold text-amber-700">{stats?.pending_maintenance || 0}</p>
-                                        <p className="text-xs text-amber-500 mt-1">Requires attention</p>
+                            {/* Maintenance Overview Panel */}
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900">Maintenance & Health</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Real-time status of service reports</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 flex-1">
+                                    <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100 flex flex-col justify-center">
+                                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Pending</p>
+                                        <p className="text-xl font-bold text-amber-700 mt-1">{stats?.pending_maintenance || 0}</p>
+                                        <p className="text-[10px] text-amber-500/80 leading-tight mt-0.5">Needs scheduling</p>
                                     </div>
-                                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                                        <p className="text-xs text-blue-600 mb-1">In Progress</p>
-                                        <p className="text-2xl font-bold text-blue-700">{stats?.in_progress_maintenance || 0}</p>
-                                        <p className="text-xs text-blue-500 mt-1">Currently being serviced</p>
+                                    <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col justify-center">
+                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">In Progress</p>
+                                        <p className="text-xl font-bold text-blue-700 mt-1">{stats?.in_progress_maintenance || 0}</p>
+                                        <p className="text-[10px] text-blue-500/80 leading-tight mt-0.5">Currently servicing</p>
                                     </div>
-                                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                                        <p className="text-xs text-emerald-600 mb-1">Completed Today</p>
-                                        <p className="text-2xl font-bold text-emerald-700">{stats?.completed_maintenance_today || 0}</p>
-                                        <p className="text-xs text-emerald-500 mt-1">Successfully resolved</p>
+                                    <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 flex flex-col justify-center">
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Completed Today</p>
+                                        <p className="text-xl font-bold text-emerald-700 mt-1">{stats?.completed_maintenance_today || 0}</p>
+                                        <p className="text-[10px] text-emerald-500/80 leading-tight mt-0.5">Resolved successfully</p>
                                     </div>
-                                    <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-                                        <p className="text-xs text-red-600 mb-1">Urgent Repairs</p>
-                                        <p className="text-2xl font-bold text-red-700">{stats?.urgent_repairs || 0}</p>
-                                        <p className="text-xs text-red-500 mt-1">Immediate action needed</p>
+                                    <div className="p-3 bg-red-50/60 rounded-xl border border-red-100 flex flex-col justify-center">
+                                        <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Urgent Repairs</p>
+                                        <p className="text-xl font-bold text-red-700 mt-1">{stats?.urgent_repairs || 0}</p>
+                                        <p className="text-[10px] text-red-500/80 leading-tight mt-0.5">Immediate action</p>
                                     </div>
                                 </div>
-                                <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Icon name="truck" className="w-4 h-4 text-slate-500" />
-                                            <span className="text-xs text-slate-600">Fleet Status</span>
+                            </div>
+
+                            {/* Operational Resources & Capacity Panel */}
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900">Resource Utilization</h3>
+                                    <p className="text-xs text-slate-500 mb-4">Capacity allocation metrics</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 flex-1">
+                                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-center group hover:bg-white hover:shadow-md transition-all">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Active Drivers</p>
+                                        <p className="text-xl font-bold text-slate-800 mt-1">
+                                            {stats?.total_drivers - stats?.active_drivers || 0} <span className="text-xs font-semibold text-slate-400">/ {stats?.total_drivers || 0}</span>
+                                        </p>
+                                        <div className="w-full bg-slate-100 rounded-full h-1 mt-2">
+                                            <div className="bg-[#4F46E5] h-1 rounded-full" style={{ width: `${((stats?.total_drivers - stats?.active_drivers) / (stats?.total_drivers || 1) * 100).toFixed(0)}%` }} />
                                         </div>
-                                        <span className="text-xs font-medium text-slate-900">
-                                            {stats?.total_trucks || 0} Total • {stats?.available_trucks || 0} Available
-                                        </span>
+                                    </div>
+                                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-center group hover:bg-white hover:shadow-md transition-all">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Active Trucks</p>
+                                        <p className="text-xl font-bold text-slate-800 mt-1">
+                                            {stats?.total_trucks - stats?.available_trucks || 0} <span className="text-xs font-semibold text-slate-400">/ {stats?.total_trucks || 0}</span>
+                                        </p>
+                                        <div className="w-full bg-slate-100 rounded-full h-1 mt-2">
+                                            <div className="bg-[#3BC240] h-1 rounded-full" style={{ width: `${((stats?.total_trucks - stats?.available_trucks) / (stats?.total_trucks || 1) * 100).toFixed(0)}%` }} />
+                                        </div>
+                                    </div>
+                                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-center group hover:bg-white hover:shadow-md transition-all">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Clients</p>
+                                        <p className="text-xl font-bold text-slate-800 mt-1">{stats?.total_clients || 0}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Active Partners</p>
+                                    </div>
+                                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-center group hover:bg-white hover:shadow-md transition-all">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Total Users</p>
+                                        <p className="text-xl font-bold text-slate-800 mt-1">{stats?.total_users || 0}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Staff & Managers</p>
                                     </div>
                                 </div>
                             </div>

@@ -15,6 +15,7 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
         client_id: '',
         driver_id: '',
         item_description: '',
+        waybill: '',
         pickup_address: '',
         delivery_address: '',
         weight_tons: '',
@@ -66,7 +67,7 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
         setData('client_id', clientId);
         
         // Auto-select driver if client has preferred driver
-        const selectedClient = clients?.find(c => c.id == clientId);
+        const selectedClient = clients?.find(c => (c.client_id || c.id) == clientId);
         if (selectedClient?.preferred_driver_id) {
             setData('driver_id', selectedClient.preferred_driver_id);
         }
@@ -77,9 +78,9 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
         setData('driver_id', driverId);
         
         // Auto-select truck based on driver
-        const selectedDriver = drivers?.find(d => d.id == driverId);
+        const selectedDriver = drivers?.find(d => (d.driver_id || d.id) == driverId);
         if (selectedDriver?.truck_id) {
-            const truck = trucks?.find(t => t.id == selectedDriver.truck_id);
+            const truck = trucks?.find(t => (t.truck_id || t.id) == selectedDriver.truck_id);
             setSelectedTruck(truck);
             setData('truck_id', selectedDriver.truck_id);
         } else {
@@ -233,7 +234,7 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Client <span className="text-red-500">*</span>
@@ -267,14 +268,37 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
                                             required
                                         >
                                             <option key="placeholder-driver" value="">Select a driver</option>
-                                            {drivers?.map((driver) => (
-                                                <option key={`driver-${driver.id || driver.driver_id}`} value={driver.id || driver.driver_id}>
-                                                    {driver.user?.firstname} {driver.user?.lastname}
-                                                </option>
-                                            ))}
+                                            {drivers?.map((driver) => {
+                                                const isAvailable = driver.availability_status === 'available';
+                                                return (
+                                                    <option 
+                                                        key={`driver-${driver.id || driver.driver_id}`} 
+                                                        value={driver.id || driver.driver_id}
+                                                        disabled={!isAvailable}
+                                                    >
+                                                        {driver.user?.firstname} {driver.user?.lastname} {!isAvailable ? '(Busy)' : ''}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                         {errors.driver_id && (
                                             <p className="mt-1 text-sm text-red-600">{errors.driver_id}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            WayBill
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={data.waybill}
+                                            onChange={(e) => setData('waybill', e.target.value)}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] transition-all"
+                                            placeholder="Enter waybill number"
+                                        />
+                                        {errors.waybill && (
+                                            <p className="mt-1 text-sm text-red-600">{errors.waybill}</p>
                                         )}
                                     </div>
                                 </div>
@@ -439,6 +463,11 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
                                                 {drivers?.find(d => d.id == data.driver_id)?.user?.firstname + ' ' + 
                                                  drivers?.find(d => d.id == data.driver_id)?.user?.lastname || 'Not selected'}
                                             </p>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="text-sm font-medium text-slate-500 mb-1">WayBill</h4>
+                                            <p className="text-slate-900">{data.waybill || 'Not specified'}</p>
                                         </div>
                                         
                                         {selectedTruck && (

@@ -12,7 +12,12 @@ use App\Http\Controllers\OperationalManagerDashboardController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\TruckController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\FaceRegistrationController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MechanicController;
+use App\Http\Controllers\PasswordChangeController;
+// use App\Http\Controllers\AttendanceDashboardController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -25,13 +30,24 @@ Route::get('/', function () {
             return redirect()->route('operational_manager.dashboard');
         }
     }
-    return redirect()->route('admin.login');
+    return inertia('Landing');
 });
+
+// Public Tracking Route
+Route::get('/track/{waybill}', [\App\Http\Controllers\TrackingController::class, 'show'])->name('track.show');
 
 // Admin login routes (no prefix)
 Route::get('/login', [AdminLoginController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/login', [AdminLoginController::class, 'login']);
 Route::post('/logout', [AdminLoginController::class, 'logout'])->name('admin.logout');
+
+// Admin API routes (stateful, used by Inertia frontend)
+Route::prefix('api/admin')->middleware('admin')->group(function () {
+    Route::get('/deliveries', [\App\Http\Controllers\AdminDashboardController::class, 'apiDeliveries']);
+    Route::get('/drivers', [\App\Http\Controllers\AdminDashboardController::class, 'apiDrivers']);
+    Route::get('/users', [\App\Http\Controllers\AdminDashboardController::class, 'apiUsers']);
+    Route::get('/driver-stops', [\App\Http\Controllers\Api\DriverStopController::class, 'index']);
+});
 
 // Admin routes
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -40,6 +56,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', [AdminDashboardController::class, 'users'])->name('users');
         Route::get('/attendance', [AdminDashboardController::class, 'attendance'])->name('attendance');
         Route::get('/drivers', [AdminDashboardController::class, 'drivers'])->name('drivers');
+        Route::get('/driver-stops', [AdminDashboardController::class, 'driverStops'])->name('driverStops');
         Route::get('/deliveries', [AdminDashboardController::class, 'deliveries'])->name('deliveries');
         Route::patch('/deliveries/{delivery}/approve', [AdminDashboardController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::patch('/deliveries/{delivery}/reject', [AdminDashboardController::class, 'rejectDelivery'])->name('deliveries.reject');
@@ -57,6 +74,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
         Route::patch('/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
         
+        // Face Registration routes
+        Route::get('/users/{user}/face', [FaceRegistrationController::class, 'show'])->name('users.face.show');
+        Route::delete('/users/{user}/face', [FaceRegistrationController::class, 'destroy'])->name('users.face.destroy');
+
+
         // Truck management routes
         Route::get('/trucks', [TruckController::class, 'index'])->name('trucks');
         Route::post('/trucks', [TruckController::class, 'store'])->name('trucks.store');
@@ -64,6 +86,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/trucks/{truck}', [TruckController::class, 'destroy'])->name('trucks.destroy');
         Route::patch('/trucks/{truck}/toggle-status', [TruckController::class, 'toggleStatus'])->name('trucks.toggle-status');
         Route::post('/trucks/{truck}/assign-driver', [TruckController::class, 'assignDriver'])->name('trucks.assign-driver');
+        
+        // Delivery statistics API
+        Route::get('/delivery-stats', [AdminDashboardController::class, 'getDeliveryStats'])->name('delivery-stats');
     });
 });
 
@@ -88,6 +113,8 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
             return inertia('OfficeStaff/MechanicAttendance');
         })->name('mechanic-attendance');
         
+        // Route::get('/face-attendance', [AttendanceDashboardController::class, 'index'])->name('attendance.dashboard');
+        
         Route::get('/inventory', function () {
             return inertia('OfficeStaff/Inventory');
         })->name('inventory');
@@ -101,6 +128,15 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         Route::post('/maintenance/parts', [MaintenanceController::class, 'storePart'])->name('maintenance.parts.store');
         Route::put('/maintenance/parts/{id}', [MaintenanceController::class, 'updatePart'])->name('maintenance.parts.update');
         Route::delete('/maintenance/parts/{id}', [MaintenanceController::class, 'deletePart'])->name('maintenance.parts.delete');
+        
+        // Mechanic Inspection Reports
+        Route::get('/maintenance/mechanic-inspection-reports', [MechanicController::class, 'getAllInspectionReports'])->name('maintenance.mechanic-inspection-reports');
+        Route::put('/maintenance/mechanic-inspection-reports/{id}/status', [MechanicController::class, 'updateInspectionReportStatus'])->name('maintenance.mechanic-inspection-reports.status');
+        Route::post('/maintenance/mechanic-inspection-reports/{inspectionId}/schedule-maintenance', [MechanicController::class, 'createMaintenanceFromInspection'])->name('maintenance.mechanic-inspection-reports.schedule-maintenance');
+        
+        // Payroll Routes
+        Route::get('/payroll', [\App\Http\Controllers\PayrollController::class, 'index'])->name('payroll');
+        Route::post('/payroll/generate', [\App\Http\Controllers\PayrollController::class, 'generate'])->name('payroll.generate');
     });
 });
 
@@ -111,14 +147,13 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         Route::get('/drivers', [OperationalManagerDashboardController::class, 'drivers'])->name('drivers');
         Route::get('/clients', [OperationalManagerDashboardController::class, 'clients'])->name('clients');
         Route::get('/deliveries', [OperationalManagerDashboardController::class, 'deliveries'])->name('deliveries');
+        Route::get('/api/deliveries', [OperationalManagerDashboardController::class, 'apiDeliveries'])->name('api.deliveries');
         Route::get('/deliveries/create', function () {
             // Get clients for dropdown
             $clients = \App\Models\Client::orderBy('client_name')->get();
             
-            // Get available drivers for dropdown (only 'available' status)
-            $drivers = \App\Models\Driver::with('user', 'truck')
-                ->where('availability_status', 'available')
-                ->get();
+            // Get all drivers for dropdown so we can show them even if busy
+            $drivers = \App\Models\Driver::with('user', 'truck')->get();
             
             // Get available trucks for dropdown
             $trucks = \App\Models\Truck::orderBy('plate_number')->get();
@@ -138,4 +173,9 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         Route::put('/clients/{client}', [ClientController::class, 'update'])->name('clients.update');
         Route::delete('/clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
     });
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/force-change-password', [PasswordChangeController::class, 'show'])->name('password.force-change');
+    Route::post('/force-change-password', [PasswordChangeController::class, 'update']);
 });

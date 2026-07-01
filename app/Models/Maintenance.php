@@ -18,6 +18,7 @@ class Maintenance extends Model
         'repair_date',
         'repair_time',
         'repair_location',
+        'assign_mechanics',
     ];
 
     protected $casts = [
@@ -30,6 +31,11 @@ class Maintenance extends Model
     public function maintenanceReport()
     {
         return $this->belongsTo(MaintenanceReport::class, 'maintenance_report_id', 'id');
+    }
+
+    public function mechanic()
+    {
+        return $this->belongsTo(User::class, 'assign_mechanics', 'user_id');
     }
 
     public function getFormattedRepairDateAttribute()

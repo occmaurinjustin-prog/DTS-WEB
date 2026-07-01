@@ -103,42 +103,43 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
         { id: 'trucks', name: 'Trucks', icon: 'trucks', href: '/admin/trucks' },
         { id: 'deliveries', name: 'Deliveries', icon: 'deliveries', href: '/admin/deliveries' },
         { id: 'routes', name: 'Routes', icon: 'routes', href: '/admin/routes' },
+        { id: 'driverStops', name: 'Driver Stops', icon: 'tracking', href: '/admin/driver-stops' },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/admin/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: notificationCount || null },
         { id: 'settings', name: 'Settings', icon: 'settings', href: '/admin/settings' },
     ];
 
     return (
-        <div className="w-[260px] h-screen bg-gradient-to-b from-[#FFFFFF] to-[#FFFFFF] p-5 flex flex-col fixed left-0 top-0 z-50 rounded-r-[20px]">
+        <div className="w-[260px] h-screen bg-slate-900 border-r border-slate-800 p-5 flex flex-col fixed left-0 top-0 z-50 shadow-2xl">
             {/* Logo */}
-            <div className="flex items-center gap-3 mb-10 px-2">
-                <div className="w-10 h-10 bg-[#3BC240] rounded-xl flex items-center justify-center shadow-lg shadow-[#3BC240]/30">
+            <div className="flex items-center gap-3 mb-8 px-2">
+                <div className="w-10 h-10 bg-[#3BC240] rounded-xl flex items-center justify-center shadow-lg shadow-[#3BC240]/30 animate-pulse">
                     <Icon name="trucks" className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-white font-bold text-lg leading-tight">DTS</h1>
-                    <p className="text-green-700 text-xs">Admin Portal</p>
+                    <h1 className="text-white font-bold text-lg leading-tight tracking-wider">DTS</h1>
+                    <p className="text-emerald-400 font-semibold text-[10px] uppercase tracking-widest">Admin Portal</p>
                 </div>
             </div>
 
             {/* Menu Items */}
-            <nav className="flex-1 space-y-1">
+            <nav className="flex-1 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
                 {menuItems.map((item) => {
                     const isActive = activeMenu === item.id;
                     return (
                         <a
                             key={item.id}
                             href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 border group ${
                                 isActive 
-                                    ? 'bg-[#FFFFFF] text-green-500 shadow-lg shadow-[#3BC240]/25 border-2 border-[#3BC240]' 
-                                    : 'text-green-500 hover:bg-green/5 hover:text-green-500 '
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-md font-semibold' 
+                                    : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-slate-100'
                             }`}
                         >
-                            <Icon name={item.icon} className={`w-5 h-5 ${isActive ? 'text-green-500' : 'text-green-500 group-hover:text-green-500'}`} />
-                            <span className="text-sm font-medium">{item.name}</span>
+                            <Icon name={item.icon} className={`w-5 h-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                            <span className="text-sm">{item.name}</span>
                             {item.badge && (
-                                <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                                <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
                                     {item.badge > 9 ? '9+' : item.badge}
                                 </span>
                             )}
@@ -148,20 +149,20 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
             </nav>
 
             {/* Bottom Section */}
-            <div className="mt-auto pt-6 border-t border-white/10">
+            <div className="mt-auto pt-6 border-t border-slate-800">
                 <div className="flex items-center gap-3 px-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                         <span className="text-white font-bold text-sm">A</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">Administrator</p>
-                        <p className="text-gray-400 text-xs truncate">System Admin</p>
+                        <p className="text-white text-sm font-semibold truncate">Administrator</p>
+                        <p className="text-slate-400 text-xs truncate">System Admin</p>
                     </div>
                     <LogoutButton />
                 </div>
                 <div className="mt-4 flex items-center gap-2 px-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-emerald-400 text-xs font-medium">System Online</span>
+                    <span className="text-emerald-400 text-xs font-semibold tracking-wider uppercase">System Online</span>
                 </div>
             </div>
         </div>

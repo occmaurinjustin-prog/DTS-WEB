@@ -50,7 +50,7 @@ export default function RecentDeliveries({ authUser, deliveries }) {
 
     const filteredDeliveries = deliveries?.filter(delivery => {
         const matchesSearch = !searchTerm || 
-            delivery.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            delivery.waybill?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             delivery.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             delivery.driver?.user?.firstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             delivery.driver?.user?.lastname?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -188,7 +188,7 @@ export default function RecentDeliveries({ authUser, deliveries }) {
                                 <div key={delivery.delivery_id} className="px-3 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center border border-gray-100">
-                                            <span className="text-xs font-semibold text-gray-600">#{delivery.tracking_number?.slice(-4)}</span>
+                                            <span className="text-xs font-semibold text-gray-600">#{delivery.waybill?.slice(-4)}</span>
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function RecentDeliveries({ authUser, deliveries }) {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-semibold text-white">Delivery #{selectedDelivery.tracking_number}</h3>
+                                        <h3 className="text-sm font-semibold text-white">Delivery #{selectedDelivery.waybill}</h3>
                                     </div>
                                 </div>
                                 <button onClick={closeDetailModal} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">

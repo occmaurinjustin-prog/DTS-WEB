@@ -1,342 +1,177 @@
 import React from 'react';
 import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Users, Truck, Wrench, Activity, ChevronRight, Clock, AlertTriangle } from 'lucide-react';
 
-export default function Dashboard({ authUser, userInfo, officeStaff, stats, recentInquiries, myInquiries }) {
+export default function Dashboard({ authUser, userInfo, officeStaff, stats }) {
     return (
         <OfficeStaffLayout title="Dashboard" authUser={authUser} activeMenu="dashboard">
-            <DashboardContent stats={stats} recentInquiries={recentInquiries} myInquiries={myInquiries} />
+            <DashboardContent authUser={authUser} userInfo={userInfo} officeStaff={officeStaff} stats={stats} />
         </OfficeStaffLayout>
     );
 }
 
-// Dashboard Content Component
-function DashboardContent({ stats, recentInquiries, myInquiries }) {
+function StatCard({ title, value, icon: Icon, trend, colorClass }) {
     return (
-        <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <button className="card-hover bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl p-4 shadow-lg flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                    </div>
-                    <div className="text-left">
-                        <p className="font-semibold">New Inquiry</p>
-                        <p className="text-xs text-amber-100">Create inquiry</p>
-                    </div>
-                </button>
-                
-                <button className="card-hover bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl p-4 shadow-lg flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <div className="text-left">
-                        <p className="font-semibold">Add Client</p>
-                        <p className="text-xs text-emerald-100">Register client</p>
-                    </div>
-                </button>
-                
-                <button className="card-hover bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-4 shadow-lg flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                    </div>
-                    <div className="text-left">
-                        <p className="font-semibold">Generate Report</p>
-                        <p className="text-xs text-blue-100">View analytics</p>
-                    </div>
-                </button>
-                
-                <button className="card-hover bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl p-4 shadow-lg flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div className="text-left">
-                        <p className="font-semibold">Schedule</p>
-                        <p className="text-xs text-purple-100">View calendar</p>
-                    </div>
-                </button>
+        <div className="relative overflow-hidden bg-white/70 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-20 blur-2xl group-hover:opacity-40 transition-opacity duration-300 ${colorClass}`} />
+            <div className="flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white shadow-sm border border-slate-100 ${colorClass.replace('bg-', 'text-')}`}>
+                    <Icon className="w-6 h-6" strokeWidth={1.5} />
+                </div>
+                {trend && (
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                        {trend}
+                    </span>
+                )}
+            </div>
+            <p className="text-sm font-semibold text-slate-500 mb-1">{title}</p>
+            <h3 className="text-3xl font-black text-slate-800 tracking-tight">{value}</h3>
+        </div>
+    );
+}
+
+function DashboardContent({ authUser, stats }) {
+    const weeklyAttendance = stats?.weekly_attendance || [];
+    const truckStatuses = stats?.truck_statuses || [];
+
+    return (
+        <div className="min-h-screen pb-12">
+            {/* Header Area */}
+            <div className="mb-10">
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Welcome back, {authUser?.firstname || 'Staff'}!</h1>
+                <p className="text-slate-500 font-medium">Here's what's happening across the fleet today.</p>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="card-hover bg-white rounded-xl p-6 shadow-lg border border-amber-100/50 cursor-pointer">
-                    <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <StatCard title="Total Mechanics" value={stats?.total_mechanics || 0} icon={Users} colorClass="bg-indigo-500" trend="Active" />
+                <StatCard title="Pending Maintenance" value={stats?.pending_maintenance || 0} icon={Wrench} colorClass="bg-amber-500" trend="Action Needed" />
+                <StatCard title="Total Fleet Size" value={stats?.total_trucks || 0} icon={Truck} colorClass="bg-blue-500" />
+                <StatCard title="Available Trucks" value={stats?.available_trucks || 0} icon={Activity} colorClass="bg-emerald-500" />
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                {/* Attendance Chart */}
+                <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <div className="flex items-center justify-between mb-6">
                         <div>
-                            <p className="text-gray-600 text-sm font-medium">Total Clients</p>
-                            <p className="text-3xl font-bold text-amber-600 mt-2">{stats.total_clients}</p>
-                            <p className="text-xs text-emerald-600 mt-2">+12% from last month</p>
+                            <h2 className="text-lg font-bold text-slate-900">Attendance Trends</h2>
+                            <p className="text-sm text-slate-500">Mechanic presence over the last 7 days</p>
                         </div>
-                        <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                        </div>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={weeklyAttendance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                                <RechartsTooltip 
+                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
+                                    cursor={{ fill: '#F1F5F9' }}
+                                />
+                                <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+                                <Bar dataKey="Present" stackId="a" fill="#10B981" radius={[0, 0, 4, 4]} />
+                                <Bar dataKey="Late" stackId="a" fill="#F59E0B" />
+                                <Bar dataKey="Absent" stackId="a" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
-                <div className="card-hover bg-white rounded-xl p-6 shadow-lg border border-amber-100/50 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium">Total Inquiries</p>
-                            <p className="text-3xl font-bold text-amber-600 mt-2">{stats.total_inquiries}</p>
-                            <p className="text-xs text-emerald-600 mt-2">+8% from last month</p>
-                        </div>
-                        <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                        </div>
+                {/* Truck Status Donut */}
+                <div className="bg-white/70 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <div className="mb-2">
+                        <h2 className="text-lg font-bold text-slate-900">Fleet Status</h2>
+                        <p className="text-sm text-slate-500">Current truck distribution</p>
                     </div>
-                </div>
-
-                <div className="card-hover bg-white rounded-xl p-6 shadow-lg border border-amber-100/50 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium">Pending Inquiries</p>
-                            <p className="text-3xl font-bold text-amber-600 mt-2">{stats.pending_inquiries}</p>
-                            <p className="text-xs text-red-600 mt-2">Requires attention</p>
-                        </div>
-                        <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card-hover bg-white rounded-xl p-6 shadow-lg border border-amber-100/50 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-600 text-sm font-medium">Closed Today</p>
-                            <p className="text-3xl font-bold text-amber-600 mt-2">{stats.closed_today || 5}</p>
-                            <p className="text-xs text-emerald-600 mt-2">Great progress!</p>
-                        </div>
-                        <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
+                    <div className="h-[280px] w-full flex items-center justify-center">
+                        {truckStatuses.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={truckStatuses}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={90}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        stroke="none"
+                                    >
+                                        {truckStatuses.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                    <Legend iconType="circle" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="text-slate-400 flex flex-col items-center">
+                                <Truck className="w-10 h-10 mb-2 opacity-50" />
+                                <span className="text-sm">No fleet data available</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Activity Overview */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 border border-amber-100/50">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                        <button className="text-amber-600 hover:text-amber-700 text-sm font-medium">View All</button>
-                    </div>
-                    <div className="space-y-4">
-                        {recentInquiries.slice(0, 5).map((inquiry, index) => (
-                            <div key={inquiry.inquiry_id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer">
-                                <div className="flex-shrink-0">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                        inquiry.status === 'closed' ? 'bg-emerald-100' :
-                                        inquiry.status === 'in_progress' ? 'bg-amber-100' :
-                                        'bg-gray-100'
-                                    }`}>
-                                        <svg className={`w-5 h-5 ${
-                                            inquiry.status === 'closed' ? 'text-emerald-600' :
-                                            inquiry.status === 'in_progress' ? 'text-amber-600' :
-                                            'text-gray-600'
-                                        }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                        </svg>
-                                    </div>
+            {/* Quick Actions */}
+            <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-6">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <a href="/office-staff/maintenance" className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-3xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500" />
+                        <div className="relative z-10 flex items-start justify-between">
+                            <div>
+                                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/20">
+                                    <Wrench className="w-6 h-6 text-white" strokeWidth={1.5} />
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-900">{inquiry.subject}</p>
-                                    <p className="text-xs text-gray-500">{inquiry.client?.client_name} - {new Date(inquiry.created_at).toLocaleDateString()}</p>
+                                <h3 className="text-xl font-bold text-white mb-1">Maintenance</h3>
+                                <p className="text-indigo-100 text-sm font-medium">Review pending reports</p>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <ChevronRight className="w-4 h-4 text-white" />
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="/office-staff/inventory" className="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500" />
+                        <div className="relative z-10 flex items-start justify-between">
+                            <div>
+                                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/20">
+                                    <Activity className="w-6 h-6 text-white" strokeWidth={1.5} />
                                 </div>
-                                <span className={`inline-flex px-2 py-1 text-xs rounded-full font-medium ${
-                                    inquiry.status === 'closed' ? 'bg-emerald-100 text-emerald-700' :
-                                    inquiry.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
-                                    'bg-gray-100 text-gray-700'
-                                }`}>
-                                    {inquiry.status?.replace('_', ' ') || 'Unknown'}
-                                </span>
+                                <h3 className="text-xl font-bold text-white mb-1">Inventory</h3>
+                                <p className="text-emerald-100 text-sm font-medium">Manage parts & supplies</p>
                             </div>
-                        ))}
-                    </div>
-                </div>
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <ChevronRight className="w-4 h-4 text-white" />
+                            </div>
+                        </div>
+                    </a>
 
-                {/* Priority Tasks */}
-                <div className="bg-white rounded-xl shadow-lg p-6 border border-amber-100/50">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">Priority Tasks</h3>
-                        <span className="bg-red-100 text-red-700 text-xs rounded-full px-2 py-1 font-semibold">3 Urgent</span>
-                    </div>
-                    <div className="space-y-3">
-                        <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                <p className="text-sm font-medium text-gray-900">Follow up with ABC Corp</p>
+                    <a href="/office-staff/mechanic-attendance" className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500" />
+                        <div className="relative z-10 flex items-start justify-between">
+                            <div>
+                                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/20">
+                                    <Clock className="w-6 h-6 text-white" strokeWidth={1.5} />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-1">Attendance</h3>
+                                <p className="text-purple-100 text-sm font-medium">Monitor daily logs</p>
                             </div>
-                            <p className="text-xs text-gray-600">Client inquiry pending response</p>
-                        </div>
-                        <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                                <p className="text-sm font-medium text-gray-900">Update client records</p>
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <ChevronRight className="w-4 h-4 text-white" />
                             </div>
-                            <p className="text-xs text-gray-600">5 clients need information update</p>
                         </div>
-                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <p className="text-sm font-medium text-gray-900">Weekly report due</p>
-                            </div>
-                            <p className="text-xs text-gray-600">Submit by Friday EOD</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Performance Chart */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-amber-100/50">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Weekly Performance</h3>
-                <div className="grid grid-cols-7 gap-4">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-                        <div key={day} className="text-center">
-                            <p className="text-xs text-gray-600 mb-2">{day}</p>
-                            <div className="relative h-24 bg-gray-100 rounded-lg">
-                                <div 
-                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-500 to-amber-400 rounded-lg"
-                                    style={{ height: `${Math.random() * 80 + 20}%` }}
-                                ></div>
-                            </div>
-                            <p className="text-xs text-gray-800 mt-2 font-semibold">{Math.floor(Math.random() * 15 + 5)}</p>
-                        </div>
-                    ))}
-                </div>
-                <div className="flex items-center justify-center mt-4 space-x-6 text-sm">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-amber-500 rounded"></div>
-                        <span className="text-gray-600">Inquiries Handled</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-emerald-500 rounded"></div>
-                        <span className="text-gray-600">Completed</span>
-                    </div>
+                    </a>
                 </div>
             </div>
         </div>
     );
 }
 
-// Inquiries Content Component
-function InquiriesContent({ inquiries }) {
-    return (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">My Inquiries</h2>
-            <div className="text-center py-12">
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Inquiry Management</h3>
-                <p className="text-gray-500">View and manage client inquiries</p>
-                <div className="mt-6 space-y-2">
-                    <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow-md">
-                        View All Inquiries
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Clients Content Component
-function ClientsContent() {
-    return (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Client Management</h2>
-            <div className="text-center py-12">
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Client Management</h3>
-                <p className="text-gray-500">View and manage client information</p>
-                <div className="mt-6 space-y-2">
-                    <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm hover:shadow-md">
-                        View All Clients
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Profile Content Component
-function ProfileContent({ authUser, userInfo, officeStaff }) {
-    return (
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">My Profile</h2>
-            <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                            <p className="text-gray-900">{userInfo?.firstname || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <p className="text-gray-900">{userInfo?.lastname || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                            <p className="text-gray-900">{authUser.username}</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                            <p className="text-gray-900">{userInfo?.contact_number || 'N/A'}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Office Information */}
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Office Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Extension Number</label>
-                            <p className="text-gray-900">{officeStaff?.extension_no || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Shift</label>
-                            <p className="text-gray-900 capitalize">{officeStaff?.assigned_shift || 'N/A'}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Account Status */}
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Status</h3>
-                    <div className="flex items-center space-x-4">
-                        <span className={`inline-flex px-3 py-1 text-xs rounded-full font-medium ${
-                            authUser.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                            {authUser.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                        <span className="inline-flex px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
-                            Office Staff
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}

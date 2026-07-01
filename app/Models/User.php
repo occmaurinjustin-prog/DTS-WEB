@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -33,8 +34,11 @@ class User extends Authenticatable
         'last_login_at',
         'extension_no',
         'assigned_shift',
-        'face_descriptor',
-        'unique_id',
+        'face_encoding',
+        'face_registered_at',
+        'face_status',
+        'email',
+        'exchangepassword',
     ];
 
     /**
@@ -57,12 +61,26 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'face_descriptor' => 'array',
         ];
     }
 
     public function driver(): HasOne
     {
         return $this->hasOne(Driver::class, 'user_id', 'user_id');
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'user_id', 'user_id');
+    }
+
+    public function faceRegistration(): HasOne
+    {
+        return $this->hasOne(FaceRegistration::class, 'user_id', 'user_id');
+    }
+
+    public function payrolls(): HasMany
+    {
+        return $this->hasMany(Payroll::class, 'user_id', 'user_id');
     }
 }

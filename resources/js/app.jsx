@@ -1,6 +1,16 @@
 import { createInertiaApp } from '@inertiajs/react'
 import { createRoot } from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '../css/app.css';
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            refetchOnWindowFocus: false,
+            retry: 1,
+        },
+    },
+});
 
 createInertiaApp({
   resolve: name => {
@@ -13,6 +23,10 @@ createInertiaApp({
       window.Ziggy = props.initialPage.props.ziggy;
     }
     
-    createRoot(el).render(<App {...props} />)
+    createRoot(el).render(
+      <QueryClientProvider client={queryClient}>
+        <App {...props} />
+      </QueryClientProvider>
+    )
   },
 })

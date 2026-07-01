@@ -10,6 +10,7 @@ class Truck extends Model
     protected $primaryKey = 'truck_id';
 
     protected $fillable = [
+        'unique_id',
         'plate_number',
         'vehicle_type',
         'model',

@@ -83,6 +83,11 @@ class AdminDashboardController extends Controller
         ]);
     }
 
+    public function driverStops()
+    {
+        return inertia('Admin/DriverStops');
+    }
+
     public function drivers()
     {
         $drivers = Driver::with('user')->orderBy('created_at', 'desc')->get();
@@ -109,6 +114,28 @@ class AdminDashboardController extends Controller
         ]);
     }
 
+    public function apiUsers(Request $request)
+    {
+        $query = User::latest('created_at');
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('firstname', 'like', "%{$searchTerm}%")
+                  ->orWhere('lastname', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%")
+                  ->orWhere('username', 'like', "%{$searchTerm}%")
+                  ->orWhere('contact_number', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        if ($request->filled('role') && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
+
+        return response()->json($query->paginate(10));
+    }
+
     public function deliveries()
     {
         $pendingDeliveries = Delivery::with(['client', 'driver.user', 'truck', 'user'])
@@ -116,17 +143,58 @@ class AdminDashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $allDeliveries = Delivery::with(['client', 'driver.user', 'truck', 'user'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
         return inertia('Admin/Deliveries', [
             'authUser' => Auth::user(),
             'pendingDeliveries' => $pendingDeliveries,
-            'allDeliveries' => $allDeliveries,
             'flash' => [
                 'success' => session('success'),
             ],
+        ]);
+    }
+
+    public function apiDeliveries(Request $request)
+    {
+        $query = Delivery::with(['client', 'driver.user', 'truck', 'user'])
+            ->latest();
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('waybill', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('client', function ($q) use ($searchTerm) {
+                      $q->where('client_name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('driver.user', function ($q) use ($searchTerm) {
+                      $q->where('firstname', 'like', "%{$searchTerm}%")
+                        ->orWhere('lastname', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('delivery_status', $request->status);
+        }
+
+        $deliveries = $query->paginate(10);
+
+        $stats = [
+            'total' => Delivery::count(),
+            'delivered' => Delivery::where('delivery_status', 'delivered')->count(),
+            'in_transit' => Delivery::where('delivery_status', 'in_transit')->count(),
+            'pending' => Delivery::where('delivery_status', 'pending')->count(),
+            'approved' => Delivery::where('delivery_status', 'approved')->count(),
+            'cancelled' => Delivery::where('delivery_status', 'cancelled')->count(),
+        ];
+
+        return response()->json([
+            'deliveries' => $deliveries->items(),
+            'meta' => [
+                'current_page' => $deliveries->currentPage(),
+                'last_page' => $deliveries->lastPage(),
+                'per_page' => $deliveries->perPage(),
+                'total' => $deliveries->total(),
+            ],
+            'stats' => $stats,
         ]);
     }
 
@@ -200,10 +268,11 @@ class AdminDashboardController extends Controller
                     'lastUpdate' => $driver->last_location_update ? \Carbon\Carbon::parse($driver->last_location_update)->diffForHumans() : 'Never',
                     'lat' => (float) $driver->current_latitude,
                     'lng' => (float) $driver->current_longitude,
+                    'isGpsEnabled' => (bool) $driver->is_gps_enabled,
                     // Current delivery info with status
                     'delivery' => $currentDelivery ? [
                         'id' => $currentDelivery->delivery_id,
-                        'tracking' => $currentDelivery->tracking_number,
+                        'tracking' => $currentDelivery->waybill,
                         'client' => $currentDelivery->client?->client_name ?? 'Unknown',
                         'delivery_status' => $currentDelivery->delivery_status, // 'assigned' or 'in_transit'
                         'navigation_phase' => $currentDelivery->navigation_phase ?? 'pickup', // 'pickup' or 'delivery'
@@ -295,7 +364,7 @@ class AdminDashboardController extends Controller
             ->map(function($delivery) {
                 return [
                     'id' => $delivery->delivery_id,
-                    'tracking_number' => $delivery->tracking_number,
+                    'waybill' => $delivery->waybill,
                     'customer' => $delivery->client ? $delivery->client->client_name : 'Unknown',
                     'status' => $delivery->delivery_status,
                     'pickup_address' => $delivery->pickup_address,
@@ -382,5 +451,110 @@ class AdminDashboardController extends Controller
             default:
                 return null;
         }
+    }
+
+    /**
+     * API for Drivers with Pagination and Filtering
+     */
+    public function apiDrivers(Request $request)
+    {
+        $query = Driver::with('user')->latest();
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('license_no', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('user', function ($q) use ($searchTerm) {
+                      $q->where('firstname', 'like', "%{$searchTerm}%")
+                        ->orWhere('lastname', 'like', "%{$searchTerm}%")
+                        ->orWhere('email', 'like', "%{$searchTerm}%")
+                        ->orWhere('contact_number', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('availability_status', $request->status);
+        }
+
+        $drivers = $query->paginate(10);
+
+        $stats = [
+            'total' => Driver::count(),
+            'available' => Driver::where('availability_status', 'available')->count(),
+            'busy' => Driver::where('availability_status', 'busy')->count(),
+            'in_transit' => Driver::where('availability_status', 'in_transit')->count(),
+            'off_duty' => Driver::where('availability_status', 'off_duty')->count(),
+            'on_duty' => Driver::where('availability_status', 'on_duty')->count(),
+            'on_leave' => Driver::where('availability_status', 'on_leave')->count(),
+        ];
+
+        return response()->json([
+            'drivers' => $drivers->items(),
+            'meta' => [
+                'current_page' => $drivers->currentPage(),
+                'last_page' => $drivers->lastPage(),
+                'per_page' => $drivers->perPage(),
+                'total' => $drivers->total(),
+            ],
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Get delivery statistics by time period
+     */
+    public function getDeliveryStats(Request $request)
+    {
+        $period = $request->input('period', 'week'); // 'day', 'week', 'month'
+        $now = now();
+        $data = [];
+
+        if ($period === 'day') {
+            // Last 24 hours by hour
+            for ($i = 23; $i >= 0; $i--) {
+                $hourStart = $now->copy()->subHours($i)->startOfHour();
+                $hourEnd = $hourStart->copy()->endOfHour();
+                
+                $count = Delivery::whereBetween('created_at', [$hourStart, $hourEnd])->count();
+                
+                $data[] = [
+                    'name' => $hourStart->format('H:00'),
+                    'value' => $count,
+                ];
+            }
+        } elseif ($period === 'week') {
+            // Last 7 days
+            $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            for ($i = 6; $i >= 0; $i--) {
+                $dayStart = $now->copy()->subDays($i)->startOfDay();
+                $dayEnd = $dayStart->copy()->endOfDay();
+                
+                $count = Delivery::whereBetween('created_at', [$dayStart, $dayEnd])->count();
+                
+                $data[] = [
+                    'name' => $days[$dayStart->dayOfWeek],
+                    'value' => $count,
+                ];
+            }
+        } elseif ($period === 'month') {
+            // Last 4 weeks
+            for ($i = 3; $i >= 0; $i--) {
+                $weekStart = $now->copy()->subWeeks($i)->startOfWeek();
+                $weekEnd = $weekStart->copy()->endOfWeek();
+                
+                $count = Delivery::whereBetween('created_at', [$weekStart, $weekEnd])->count();
+                
+                $data[] = [
+                    'name' => 'Week ' . (4 - $i),
+                    'value' => $count,
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
     }
 }

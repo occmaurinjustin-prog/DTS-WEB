@@ -3,30 +3,50 @@
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\LoginController;
 use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\FaceRegistrationController;
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\MechanicController;
-use App\Http\Controllers\MechanicAttendanceController;
-use App\Http\Controllers\FaceVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['cors'])->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::post('/logout', [LoginController::class, 'logout']);
     Route::get('/me', [LoginController::class, 'me'])->middleware('auth.api');
+    Route::post('/force-change-password', [App\Http\Controllers\PasswordChangeController::class, 'update'])->middleware('auth.api');
 
-    // Mechanic login - no password required, only unique_id
+    // Mechanic login - no password required, only user_id
     Route::post('/mechanics/login', [MechanicController::class, 'login']);
-    Route::get('/mechanics/{uniqueId}', [MechanicController::class, 'show']);
+    Route::get('/mechanics/{userId}', [MechanicController::class, 'show']);
+    Route::get('/mechanic/assignments', [MechanicController::class, 'getAssignments'])->middleware('auth.api');
+    Route::put('/mechanic/assignments/{maintenanceId}/status', [MechanicController::class, 'updateMaintenanceStatus'])->middleware('auth.api');
+    
+    // Mechanic inspection reports
+    Route::get('/mechanic/inspection-reports', [MechanicController::class, 'getInspectionReports'])->middleware('auth.api');
+    Route::post('/mechanic/inspection-reports', [MechanicController::class, 'createInspectionReport'])->middleware('auth.api');
+    Route::get('/mechanic/dashboard-stats', [MechanicController::class, 'getDashboardStats'])->middleware('auth.api');
+    Route::get('/mechanic/trucks', [MechanicController::class, 'getAvailableTrucks'])->middleware('auth.api');
+    Route::get('/mechanics', [MechanicController::class, 'getMechanics']);
 
-    // Mechanic attendance (face verification)
-    Route::post('/mechanics/attendance', [MechanicAttendanceController::class, 'store']);
-    Route::get('/mechanics/{uniqueId}/attendance', [MechanicAttendanceController::class, 'show']);
+    // Mechanic attendance
+    // Route::post('/mechanics/attendance', [MechanicAttendanceController::class, 'store']);
+    // Route::get('/mechanics/{userId}/attendance', [MechanicAttendanceController::class, 'show']);
 
-    // STRICT Face Verification (1:1 matching)
-    Route::post('/mechanics/verify-face', [FaceVerificationController::class, 'verifyFace']);
-    Route::get('/mechanics/{uniqueId}/face-stats', [FaceVerificationController::class, 'getVerificationStats']);
+    // Mechanic Face Registration and Attendance
+    // Mechanic Face Registration and Attendance
+    Route::post('/mechanic/face/register', [\App\Http\Controllers\Api\RegisterFaceController::class, 'register']);
+    
+    // New Comprehensive Attendance endpoints
+    Route::post('/attendance/scan', [\App\Http\Controllers\Api\AttendanceController::class, 'scan']);
+    Route::get('/attendance/today', [\App\Http\Controllers\Api\AttendanceController::class, 'today']);
+    Route::get('/attendance/history', [\App\Http\Controllers\Api\AttendanceController::class, 'history']);
 
     // Driver API routes (require authentication)
     Route::middleware(['auth.api'])->group(function () {
+        // Face Recognition
+        Route::post('/face/register', [FaceRegistrationController::class, 'register']);
+        Route::post('/face/verify', [AttendanceController::class, 'verify']);
+        Route::get('/face/history', [AttendanceController::class, 'history']);
+
         // Driver profile and status
         Route::get('/driver/profile', [DriverController::class, 'profile']);
         Route::get('/driver/status', [DriverController::class, 'status']);
@@ -34,6 +54,10 @@ Route::middleware(['cors'])->group(function () {
 
         // Driver location tracking
         Route::post('/driver/location', [DriverController::class, 'updateLocation']);
+
+        // Driver stops tracking
+        Route::post('/driver/stops/start', [\App\Http\Controllers\Api\DriverStopController::class, 'start']);
+        Route::post('/driver/stops/end', [\App\Http\Controllers\Api\DriverStopController::class, 'end']);
 
         // Maintenance report submission
         Route::post('/driver/maintenance-report', [DriverController::class, 'submitMaintenanceReport']);
@@ -53,4 +77,6 @@ Route::middleware(['cors'])->group(function () {
         // Routes endpoint
         Route::get('/routes', [DeliveryController::class, 'getRoutes']);
     });
+
+
 });

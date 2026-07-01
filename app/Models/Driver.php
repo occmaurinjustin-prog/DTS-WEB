@@ -19,6 +19,7 @@ class Driver extends Model
         'current_longitude',
         'last_location_update',
         'current_speed',
+        'is_gps_enabled',
     ];
 
     protected $casts = [

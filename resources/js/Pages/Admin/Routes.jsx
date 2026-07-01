@@ -135,7 +135,8 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                   driver.delivery?.delivery_status === 'assigned' ? 'Assigned' : 'Unknown',
             distance: driver.delivery ? `${Math.random() * 20 + 5} km` : '0 km',
             trackingId: driver.delivery?.tracking || 'DEL-2024-000',
-            cargoWeight: driver.delivery?.weight ? `${driver.delivery.weight} tons` : '0 tons'
+            cargoWeight: driver.delivery?.weight ? `${driver.delivery.weight} tons` : '0 tons',
+            isGpsEnabled: driver.isGpsEnabled ?? true,
         };
         
         // DEBUG: Log transformed data
@@ -145,6 +146,62 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     });
 
     const [driverList, setDriverList] = useState(transformedDrivers);
+
+    // Update driver list when drivers prop changes (real-time updates)
+    useEffect(() => {
+        const updatedDrivers = drivers.map(driver => {
+            const transformed = {
+                id: driver.id,
+                name: driver.driver,
+                plateNumber: driver.plate,
+                status: driver.status,
+                speed: driver.speed,
+                lastUpdated: driver.lastUpdate,
+                pickup: { 
+                    lat: Number(driver.delivery?.pickup_latitude || driver.delivery?.pickup_lat) || 14.5995, 
+                    lng: Number(driver.delivery?.pickup_longitude || driver.delivery?.pickup_lng) || 120.9842, 
+                    address: driver.delivery?.pickup_address || 'Pickup Location' 
+                },
+                destination: { 
+                    lat: Number(driver.delivery?.delivery_latitude || driver.delivery?.dest_lat) || 14.6091, 
+                    lng: Number(driver.delivery?.delivery_longitude || driver.delivery?.dest_lng) || 120.9932, 
+                    address: driver.delivery?.delivery_address || driver.delivery?.dest_address || 'Destination' 
+                },
+                currentLocation: { 
+                    lat: Number(driver.lat) || 14.5995, 
+                    lng: Number(driver.lng) || 120.9842 
+                },
+                delivery: {
+                    delivery_status: driver.delivery?.delivery_status || 'assigned'
+                },
+                eta: driver.delivery?.delivery_status === 'in_transit' ? 'In Transit' : 
+                      driver.delivery?.delivery_status === 'assigned' ? 'Assigned' : 'Unknown',
+                distance: driver.delivery ? `${Math.random() * 20 + 5} km` : '0 km',
+                trackingId: driver.delivery?.tracking || 'DEL-2024-000',
+                cargoWeight: driver.delivery?.weight ? `${driver.delivery.weight} tons` : '0 tons',
+                isGpsEnabled: driver.isGpsEnabled ?? true,
+            };
+            return transformed;
+        });
+        setDriverList(updatedDrivers);
+    }, [drivers]);
+
+    // Real-time driver location polling
+    useEffect(() => {
+        const pollInterval = setInterval(() => {
+            // Always refresh driver data for real-time status/speed updates
+            router.reload({ 
+                only: ['drivers'], 
+                preserveScroll: true, 
+                preserveState: true,
+                onSuccess: () => {
+                    console.log('Driver data refreshed (status, speed, location)');
+                }
+            });
+        }, 5000); // Poll every 5 seconds
+
+        return () => clearInterval(pollInterval);
+    }, []); // Empty deps - always poll regardless of selection
 
     // Initialize Mapbox map (same approach as working LocationPickerModal)
     useEffect(() => {
@@ -188,7 +245,18 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 map.current = null;
             }
         };
-    }, [driverList]);
+    }, []);
+
+    // Update map when driver data changes (real-time updates)
+    useEffect(() => {
+        if (selectedDriver && map.current) {
+            const updatedDriver = transformedDrivers.find(d => d.id === selectedDriver.id);
+            if (updatedDriver) {
+                setSelectedDriver(updatedDriver);
+                updateDriverPosition(updatedDriver);
+            }
+        }
+    }, [drivers]);
 
     // Clear all markers and routes from map
     const clearMap = () => {
@@ -234,6 +302,13 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 driver.currentLocation.lat
             ])
             .addTo(map.current);
+
+        // Store marker reference for real-time updates
+        markers.current[driver.id] = {
+            driver: driverMarker,
+            pickup: null,
+            destination: null
+        };
 
         // PICKUP MARKER (always show initially, hide only after pickup is confirmed)
         let pickupMarker = null;
@@ -328,9 +403,14 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const createDriverMarker = (driver) => {
         const el = document.createElement('div');
         el.className = 'relative';
+        
+        const isGpsOn = driver.isGpsEnabled ?? true;
+        const outerClass = isGpsOn ? 'bg-blue-500 animate-ping' : 'bg-red-500';
+        const innerClass = isGpsOn ? 'bg-blue-600' : 'bg-red-600';
+        
         el.innerHTML = `
-            <div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div>
-            <div class="relative bg-blue-600 rounded-full p-2 border-2 border-white shadow-lg">
+            <div class="absolute inset-0 ${outerClass} rounded-full opacity-75"></div>
+            <div class="relative ${innerClass} rounded-full p-2 border-2 border-white shadow-lg">
                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
                     <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
@@ -431,12 +511,20 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
         // REMOVE OLD LAYER
         if (map.current.getLayer(routeId)) {
-            map.current.removeLayer(routeId);
+            try {
+                map.current.removeLayer(routeId);
+            } catch (e) {
+                console.log('Layer already removed or does not exist:', e);
+            }
         }
 
-        // REMOVE OLD SOURCE
+        // REMOVE OLD SOURCE with retry logic
         if (map.current.getSource(routeId)) {
-            map.current.removeSource(routeId);
+            try {
+                map.current.removeSource(routeId);
+            } catch (e) {
+                console.log('Source already removed or does not exist:', e);
+            }
         }
 
         try {
@@ -483,25 +571,35 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 }
             };
 
-            map.current.addSource(routeId, {
-                type: 'geojson',
-                data: routeData
-            });
+            // Check if source already exists to prevent duplicate error
+            if (map.current.getSource(routeId)) {
+                // Update existing source data instead of adding new one
+                map.current.getSource(routeId).setData(routeData);
+            } else {
+                // Add new source
+                map.current.addSource(routeId, {
+                    type: 'geojson',
+                    data: routeData
+                });
+            }
 
-            map.current.addLayer({
-                id: routeId,
-                type: 'line',
-                source: routeId,
-                layout: {
-                    'line-join': 'round',
-                    'line-cap': 'round'
-                },
-                paint: {
-                    'line-color': '#3B82F6',
-                    'line-width': 5,
-                    'line-opacity': 0.8
-                }
-            });
+            // Check if layer already exists
+            if (!map.current.getLayer(routeId)) {
+                map.current.addLayer({
+                    id: routeId,
+                    type: 'line',
+                    source: routeId,
+                    layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    paint: {
+                        'line-color': '#3B82F6',
+                        'line-width': 5,
+                        'line-opacity': 0.8
+                    }
+                });
+            }
 
             routeLines.current[routeId] = true;
 
@@ -542,30 +640,85 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             }
         };
 
-        // ADD SOURCE
-        map.current.addSource(routeId, {
-            type: 'geojson',
-            data: routeData
-        });
-
-        // ADD LINE LAYER
-        map.current.addLayer({
-            id: routeId,
-            type: 'line',
-            source: routeId,
-            layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-            },
-            paint: {
-                'line-color': '#3B82F6',
-                'line-width': 5,
-                'line-opacity': 0.8
+        // REMOVE OLD LAYER
+        if (map.current.getLayer(routeId)) {
+            try {
+                map.current.removeLayer(routeId);
+            } catch (e) {
+                console.log('Layer already removed or does not exist:', e);
             }
-        });
+        }
+
+        // REMOVE OLD SOURCE
+        if (map.current.getSource(routeId)) {
+            try {
+                map.current.removeSource(routeId);
+            } catch (e) {
+                console.log('Source already removed or does not exist:', e);
+            }
+        }
+
+        // ADD SOURCE (or update if exists)
+        if (map.current.getSource(routeId)) {
+            map.current.getSource(routeId).setData(routeData);
+        } else {
+            map.current.addSource(routeId, {
+                type: 'geojson',
+                data: routeData
+            });
+        }
+
+        // ADD LINE LAYER (if not exists)
+        if (!map.current.getLayer(routeId)) {
+            map.current.addLayer({
+                id: routeId,
+                type: 'line',
+                source: routeId,
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                paint: {
+                    'line-color': '#3B82F6',
+                    'line-width': 5,
+                    'line-opacity': 0.8
+                }
+            });
+        }
 
         // SAVE ROUTE ID
         routeLines.current[routeId] = true;
+    };
+
+    // Update driver marker position in real-time
+    const updateDriverPosition = (driver) => {
+        if (!map.current || !markers.current[driver.id]?.driver) return;
+
+        const driverMarker = markers.current[driver.id].driver;
+        driverMarker.setLngLat([
+            driver.currentLocation.lng,
+            driver.currentLocation.lat
+        ]);
+
+        // Redraw route with new position
+        drawRoute(driver);
+
+        // If following driver, pan map to new position with smooth animation
+        if (followDriver) {
+            map.current.flyTo({
+                center: [
+                    driver.currentLocation.lng,
+                    driver.currentLocation.lat
+                ],
+                zoom: 13,
+                duration: 3000, // Smoother transition
+                essential: true,
+                easing: (t) => {
+                    // Custom easing function for smoother animation
+                    return t * (2 - t); // Ease-out quadratic
+                }
+            });
+        }
     };
 
     // Handle driver selection
@@ -573,17 +726,20 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         setSelectedDriver(driver);
         setViewAllDrivers(false);
 
-        // Refresh driver data to get latest status
+        // Show driver on map immediately with smooth animation
+        showDriverOnMap(driver);
+
+        // Refresh driver data to get latest status (in background)
         router.reload({ 
             only: ['pendingDeliveries', 'allDeliveries'], 
             preserveScroll: true, 
-            preserveState: false,
+            preserveState: true,
             onSuccess: () => {
                 console.log('Driver data refreshed');
-                // Show driver on map after data refresh
+                // Update driver on map with refreshed data
                 const updatedDriver = transformedDrivers.find(d => d.id === driver.id);
                 if (updatedDriver) {
-                    showDriverOnMap(updatedDriver);
+                    updateDriverPosition(updatedDriver);
                 }
             }
         });
@@ -593,6 +749,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const handleViewAllDrivers = () => {
         setViewAllDrivers(true);
         setSelectedDriver(null);
+        setFollowDriver(false); // Disable follow when viewing all
         
         if (map.current && mapboxgl) {
             // Fit bounds to show all drivers
@@ -604,6 +761,32 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         }
     };
 
+    // Handle follow driver toggle
+    const handleFollowDriver = () => {
+        const newFollowState = !followDriver;
+        setFollowDriver(newFollowState);
+
+        if (newFollowState && selectedDriver && map.current) {
+            // When enabling follow, immediately center on driver with smooth animation
+            map.current.flyTo({
+                center: [
+                    selectedDriver.currentLocation.lng,
+                    selectedDriver.currentLocation.lat
+                ],
+                zoom: 15, // Closer zoom when following
+                duration: 1500,
+                essential: true
+            });
+        } else if (!newFollowState && map.current) {
+            // When disabling follow, zoom out slightly for better context
+            map.current.flyTo({
+                zoom: 13,
+                duration: 1000,
+                essential: true
+            });
+        }
+    };
+
     // Filter drivers based on search
     const filteredDrivers = driverList.filter(driver =>
         driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -612,22 +795,28 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
     // Get status badge styling
     const getStatusBadge = (status) => {
+        const cleanStatus = status || 'stopped';
         const styles = {
-            moving: 'bg-green-100 text-green-700 border-green-200',
-            delivering: 'bg-blue-100 text-blue-700 border-blue-200',
-            stopped: 'bg-yellow-100 text-yellow-700 border-yellow-200'
+            moving: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+            delivering: 'bg-blue-50 text-blue-700 border-blue-200/60',
+            stopped: 'bg-amber-50 text-amber-700 border-amber-200/60',
+            offline: 'bg-slate-100 text-slate-600 border-slate-200',
         };
 
         const icons = {
-            moving: <PlayCircleIcon className="w-3 h-3" />,
-            delivering: <PackageIcon className="w-3 h-3" />,
-            stopped: <AlertCircleIcon className="w-3 h-3" />
+            moving: <span className="relative flex h-1.5 w-1.5 mr-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>,
+            delivering: <PackageIcon className="w-3 h-3 text-blue-500 mr-1" />,
+            stopped: <AlertCircleIcon className="w-3.5 h-3.5 mr-1 text-amber-500" />,
+            offline: <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></div>
         };
 
+        const currentStyle = styles[cleanStatus] || styles.offline;
+        const currentIcon = icons[cleanStatus] || icons.offline;
+
         return (
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${styles[status]}`}>
-                {icons[status]}
-                <span className="capitalize">{status}</span>
+            <div className={`flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border shadow-sm ${currentStyle}`}>
+                {currentIcon}
+                <span className="capitalize">{cleanStatus}</span>
             </div>
         );
     };
@@ -636,76 +825,83 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         <AdminLayout title="Live Routes" authUser={authUser} activeMenu="routes">
             <div className="w-full h-screen flex overflow-hidden bg-gray-50">
                 {/* LEFT PANEL - Driver List */}
-                <div className="w-75 bg-white/80 backdrop-blur-lg border-r border-gray-200 flex flex-col shadow-xl">
+                <div className="w-[380px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
                     {/* Header */}
-                    <div className="p-2 border-b border-gray-200">
+                    <div className="p-5 border-b border-slate-200 bg-slate-50/50">
                         <div className="mb-4">
-                            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                                <NavigationIcon className="w-6 h-6 text-blue-600" />
+                            <h1 className="text-xl font-bold text-slate-955 flex items-center gap-2">
+                                <NavigationIcon className="w-5.5 h-5.5 text-blue-600 animate-pulse" />
                                 Live Drivers
                             </h1>
-                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                <ActivityIcon className="w-4 h-4" />
+                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1 font-medium">
+                                <ActivityIcon className="w-3.5 h-3.5 text-emerald-500 animate-bounce" />
                                 GPS Tracking • Pickup & Delivery
                             </p>
                         </div>
 
                         {/* Search */}
                         <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <SearchIcon className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                             <input
                                 type="text"
                                 placeholder="Search driver or plate number..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm"
+                                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none bg-white transition-all text-sm shadow-sm"
                             />
                         </div>
                     </div>
 
                     {/* Driver Cards */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
                         {filteredDrivers.map((driver) => (
                             <div
                                 key={driver.id}
                                 onClick={() => handleDriverSelect(driver)}
-                                className={`p-4 rounded-xl cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
+                                className={`p-5 rounded-2xl cursor-pointer transition-all duration-200 border-2 ${
                                     selectedDriver?.id === driver.id
-                                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-2 border-blue-400 shadow-lg ring-4 ring-blue-400/20'
-                                        : 'bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:shadow-md hover:border-blue-300'
+                                        ? 'bg-white border-blue-600 shadow-xl shadow-blue-100/50 ring-4 ring-blue-50'
+                                        : 'bg-white border-slate-100 shadow-sm hover:border-blue-300 hover:shadow-md'
                                 }`}
                             >
                                     {/* Driver Info */}
-                                    <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-start justify-between gap-2 mb-3.5">
                                         <div>
-                                            <h3 className="font-semibold text-gray-900">{driver.name}</h3>
-                                            <p className="text-sm text-gray-600 flex items-center gap-1">
-                                                <TruckIcon className="w-3 h-3" />
-                                                {driver.plateNumber}
+                                            <h3 className="font-bold text-slate-800 text-sm leading-tight">{driver.name}</h3>
+                                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-1">
+                                                <TruckIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold">{driver.plateNumber}</span>
                                             </p>
                                         </div>
                                         {getStatusBadge(driver.status)}
                                     </div>
 
-                                    {/* Status Details */}
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div className="flex items-center gap-1 text-gray-600">
-                                            <ActivityIcon className="w-3 h-3" />
-                                            <span>{driver.speed} km/h</span>
+                                    {/* Travel route layout */}
+                                    <div className="relative pl-4 border-l border-dashed border-slate-300 space-y-3 mt-4">
+                                        {/* Pickup pin */}
+                                        <div className="relative">
+                                            <div className="absolute -left-[20.5px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></div>
+                                            <p className="text-[10px] text-slate-400 font-semibold uppercase leading-none">Pickup</p>
+                                            <p className="text-xs text-slate-700 font-semibold truncate mt-1">{driver.pickup.address}</p>
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-600">
-                                            <ClockIcon className="w-3 h-3" />
+                                        {/* Destination pin */}
+                                        <div className="relative">
+                                            <div className="absolute -left-[20.5px] top-1.5 w-2 h-2 rounded-full bg-red-500 ring-4 ring-red-50"></div>
+                                            <p className="text-[10px] text-slate-400 font-semibold uppercase leading-none">Destination</p>
+                                            <p className="text-xs text-slate-700 font-semibold truncate mt-1">{driver.destination.address}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Status Details Footer */}
+                                    <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full font-bold">{driver.speed} km/h</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-slate-500">
+                                            <ClockIcon className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
                                             <span>{driver.lastUpdated}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 text-gray-600">
-                                            <MapPinIcon className="w-3 h-3 text-green-500" />
-                                            <span className="truncate">{driver.pickup.address}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-gray-600">
-                                            <MapPinIcon className="w-3 h-3 text-red-500" />
-                                            <span className="truncate">{driver.destination.address}</span>
-                                        </div>
-                                </div>
+                                    </div>
                             </div>
                         ))}
                     </div>
@@ -744,7 +940,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                         </button>
                         {selectedDriver && (
                             <button
-                                onClick={() => setFollowDriver(!followDriver)}
+                                onClick={handleFollowDriver}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                                     followDriver
                                         ? 'bg-blue-600 text-white'
@@ -752,7 +948,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                                 }`}
                             >
                                 <EyeIcon className="w-4 h-4" />
-                                Follow Driver
+                                {followDriver ? 'Following' : 'Follow Driver'}
                             </button>
                         )}
                     </div>

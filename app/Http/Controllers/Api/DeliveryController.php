@@ -54,9 +54,25 @@ class DeliveryController extends Controller
                     \Log::warning('Some relationships not found, loading without eager load');
                 }
                 
-                $deliveries = $query->get();
-                    
-                \Log::info('Deliveries fetched', ['count' => $deliveries->count()]);
+                // Status filtering for pagination
+                if ($request->has('status')) {
+                    $status = $request->get('status');
+                    if ($status === 'completed') {
+                        $query->whereIn('delivery_status', ['delivered', 'cancelled']);
+                    } else {
+                        $query->where('delivery_status', $status);
+                    }
+                }
+
+                // If page or per_page is passed, paginate
+                if ($request->has('page') || $request->has('per_page')) {
+                    $perPage = $request->get('per_page', 10);
+                    $deliveries = $query->paginate($perPage);
+                    \Log::info('Deliveries paginated', ['count' => $deliveries->count(), 'total' => $deliveries->total()]);
+                } else {
+                    $deliveries = $query->get();
+                    \Log::info('Deliveries fetched', ['count' => $deliveries->count()]);
+                }
             } elseif ($user->role === 'operation_manager') {
                 $deliveries = Delivery::with(['client', 'truck', 'driver'])
                     ->where('user_id', $user->user_id)
@@ -73,11 +89,11 @@ class DeliveryController extends Controller
                 ], 403);
             }
 
-            // Ensure coordinates are included in response
-            $deliveriesWithCoords = $deliveries->map(function($delivery) {
+            // Format delivery items
+            $formatDelivery = function($delivery) {
                 return [
                     'delivery_id' => $delivery->delivery_id,
-                    'tracking_number' => $delivery->tracking_number,
+                    'waybill' => $delivery->waybill,
                     'delivery_status' => $delivery->delivery_status,
                     'navigation_phase' => $delivery->navigation_phase ?? 'pickup',
                     'pickup_address' => $delivery->pickup_address,
@@ -92,8 +108,30 @@ class DeliveryController extends Controller
                     'driver' => $delivery->driver,
                     'truck' => $delivery->truck,
                     'created_at' => $delivery->created_at,
+                    'proof_image' => $delivery->proof_image,
+                    'remarks' => $delivery->remarks,
+                    'delivered_at' => $delivery->delivered_at ? $delivery->delivered_at->toIso8601String() : null,
+                    'actual_delivery_latitude' => $delivery->actual_delivery_latitude,
+                    'actual_delivery_longitude' => $delivery->actual_delivery_longitude,
                 ];
-            });
+            };
+
+            // Return paginated response if a Paginator instance
+            if ($deliveries instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+                $transformedItems = collect($deliveries->items())->map($formatDelivery);
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => $transformedItems,
+                    'current_page' => $deliveries->currentPage(),
+                    'last_page' => $deliveries->lastPage(),
+                    'next_page_url' => $deliveries->nextPageUrl(),
+                    'total' => $deliveries->total(),
+                ]);
+            }
+
+            // Return normal response
+            $deliveriesWithCoords = $deliveries->map($formatDelivery);
 
             return response()->json([
                 'success' => true,
@@ -130,6 +168,7 @@ class DeliveryController extends Controller
             'client_id' => 'required|exists:clients,client_id',
             'weight_tons' => 'required|numeric|min:0',
             'item_description' => 'required|string',
+            'waybill' => 'required|string|max:50',
         ]);
 
         $delivery = Delivery::create([
@@ -139,7 +178,7 @@ class DeliveryController extends Controller
             'client_id' => $validated['client_id'],
             'weight_tons' => $validated['weight_tons'],
             'item_description' => $validated['item_description'],
-            'tracking_number' => 'DTS-' . strtoupper(uniqid()),
+            'waybill' => $validated['waybill'],
             'delivery_status' => 'pending',
         ]);
 
@@ -221,6 +260,32 @@ class DeliveryController extends Controller
             ], 404);
         }
 
+        // Proof of Delivery validation for completion
+        if ($validated['delivery_status'] === 'delivered') {
+            if (!$request->hasFile('proof_image')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please upload proof of delivery before confirming.',
+                ], 422);
+            }
+
+            // Save uploaded proof image
+            $file = $request->file('proof_image');
+            $path = $file->store('proofs', 'public');
+            $delivery->proof_image = '/storage/' . $path;
+
+            // Save optional and auto-generated fields
+            $delivery->remarks = $request->input('remarks');
+            $delivery->delivered_at = now();
+
+            if ($request->has('actual_delivery_latitude')) {
+                $delivery->actual_delivery_latitude = $request->input('actual_delivery_latitude');
+            }
+            if ($request->has('actual_delivery_longitude')) {
+                $delivery->actual_delivery_longitude = $request->input('actual_delivery_longitude');
+            }
+        }
+
         $oldStatus = $delivery->delivery_status;
         $delivery->delivery_status = $validated['delivery_status'];
         
@@ -241,6 +306,9 @@ class DeliveryController extends Controller
             'new_status' => $validated['delivery_status'],
             'navigation_phase' => $delivery->navigation_phase ?? 'pickup',
             'driver_availability' => $driver->fresh()->availability_status,
+            'proof_image' => $delivery->proof_image,
+            'remarks' => $delivery->remarks,
+            'delivered_at' => $delivery->delivered_at,
         ]);
 
         // TODO: Send real-time notification to admin/manager
@@ -394,7 +462,7 @@ class DeliveryController extends Controller
                             'delivery_status' => $delivery->delivery_status,
                             'estimated_arrival' => $delivery->created_at->addMinutes($index * 45)->format('g:i A'),
                             'weight' => $delivery->weight_tons . ' tons',
-                            'tracking_number' => $delivery->tracking_number,
+                            'waybill' => $delivery->waybill,
                         ];
                     })->toArray()
                 ];

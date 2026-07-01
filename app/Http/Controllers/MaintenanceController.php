@@ -16,29 +16,34 @@ class MaintenanceController extends Controller
     // Fleet Management Dashboard
     public function index()
     {
-        $driverReports = MaintenanceReport::with(['driver.user', 'truck'])
+        $driverReports = MaintenanceReport::whereNull('mechanic_id')
+            ->with(['driver.user', 'truck'])
             ->latest()
             ->take(10)
             ->get();
 
         $stats = [
             'total_reports' => MaintenanceReport::count(),
-            'pending_reports' => MaintenanceReport::where('status', 'pending')->count(),
-            'approved_reports' => MaintenanceReport::where('status', 'approved')->count(),
-            'rejected_reports' => MaintenanceReport::where('status', 'rejected')->count(),
+            'pending_reports' => MaintenanceReport::whereNull('mechanic_id')->where('status', 'pending')->count(),
+            'approved_reports' => MaintenanceReport::whereNull('mechanic_id')->where('status', 'approved')->count(),
+            'rejected_reports' => MaintenanceReport::whereNull('mechanic_id')->where('status', 'rejected')->count(),
         ];
+
+        $mechanics = \App\Models\User::where('role', 'mechanic')->get();
 
         return Inertia::render('OfficeStaff/Maintenance', [
             'reports' => $driverReports,
             'stats' => $stats,
             'authUser' => Auth::user(),
+            'mechanics' => $mechanics,
         ]);
     }
 
     // Get driver maintenance reports
     public function getDriverReports(Request $request)
     {
-        $query = MaintenanceReport::with(['driver.user', 'truck', 'maintenance']);
+        $query = MaintenanceReport::whereNull('mechanic_id')
+            ->with(['driver.user', 'truck', 'maintenance']);
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -145,6 +150,7 @@ class MaintenanceController extends Controller
                 'schedule.repair_date' => 'required|date',
                 'schedule.repair_time' => 'required',
                 'schedule.repair_location' => 'required|string|max:255',
+                'schedule.assign_mechanics' => 'nullable|exists:users,user_id',
             ]);
             
             \Log::info('Validation passed', $validated);
@@ -158,6 +164,7 @@ class MaintenanceController extends Controller
                     'repair_date' => $validated['schedule']['repair_date'],
                     'repair_time' => $validated['schedule']['repair_time'],
                     'repair_location' => $validated['schedule']['repair_location'],
+                    'assign_mechanics' => $validated['schedule']['assign_mechanics'] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -199,14 +206,14 @@ class MaintenanceController extends Controller
             
             \Log::info('Workflow completed successfully');
 
-            return redirect()->back()->with('success', 'Maintenance workflow processed successfully!');
+            return redirect()->route('office_staff.maintenance')->with('success', 'Maintenance workflow processed successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation failed', ['errors' => $e->errors()]);
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Workflow failed', ['error' => $e->getMessage()]);
-            return redirect()->back()->with('error', 'Failed to process workflow: ' . $e->getMessage());
+            return redirect()->back()->withErrors(['error' => 'Failed to process workflow: ' . $e->getMessage()]);
         }
     }
 }

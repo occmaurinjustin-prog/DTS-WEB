@@ -12,6 +12,10 @@ class MaintenanceReport extends Model
     protected $fillable = [
         'driver_id',
         'truck_id',
+        'mechanic_id',
+        'inspection_date',
+        'overall_condition',
+        'mileage',
         'issue_title',
         'issue_description',
         'priority_level',
@@ -26,6 +30,7 @@ class MaintenanceReport extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'inspection_date' => 'date',
         'parts_used' => 'array',
         'labor_cost' => 'decimal:2',
     ];
@@ -46,6 +51,14 @@ class MaintenanceReport extends Model
     public function driver(): BelongsTo
     {
         return $this->belongsTo(Driver::class, 'driver_id', 'driver_id');
+    }
+
+    /**
+     * Get the mechanic who performed the inspection (if applicable)
+     */
+    public function mechanic(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mechanic_id', 'user_id');
     }
 
     /**

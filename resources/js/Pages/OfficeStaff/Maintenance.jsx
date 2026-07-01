@@ -1,37 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
+import { 
+    LayoutDashboard, Package, BarChart3, Plus, Search, Filter, 
+    Edit2, Trash2, X, Check, AlertCircle, User, ArrowRight, ArrowLeft, 
+    Download, Upload, Calendar, Clock, MapPin, Wrench, Minus, PlusCircle 
+} from 'lucide-react';
 
-// Icons
-const Icons = {
-    dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-    package: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-    chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-    plus: 'M12 4v16m8-8H4',
-    search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
-    filter: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z',
-    edit: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-    trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
-    close: 'M6 18L18 6M6 6l12 12',
-    check: 'M5 13l4 4L19 7',
-    alert: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
-    user: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-    arrowRight: 'M9 5l7 7-7 7',
-    arrowLeft: 'M15 19l-7-7 7-7',
-    calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-    clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-    location: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z',
-    wrench: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
-    minus: 'M20 12H4',
-    plusCircle: 'M12 9v6m0 0l-3-3m3 3l3-3m12 0a9 9 0 11-18 0 9 9 0 0118 0z'
+const iconMap = {
+    dashboard: LayoutDashboard,
+    package: Package,
+    chart: BarChart3,
+    plus: Plus,
+    search: Search,
+    filter: Filter,
+    edit: Edit2,
+    trash: Trash2,
+    close: X,
+    check: Check,
+    alert: AlertCircle,
+    user: User,
+    arrowRight: ArrowRight,
+    arrowLeft: ArrowLeft,
+    download: Download,
+    upload: Upload,
+    calendar: Calendar,
+    clock: Clock,
+    location: MapPin,
+    wrench: Wrench,
+    minus: Minus,
+    plusCircle: PlusCircle
 };
 
 function Icon({ name, className = 'w-5 h-5' }) {
-    return (
-        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d={Icons[name]} />
-        </svg>
-    );
+    const LucideIcon = iconMap[name];
+    if (!LucideIcon) return null;
+    return <LucideIcon className={className} strokeWidth={2} />;
 }
 
 // Status Badge Component
@@ -68,7 +72,7 @@ function StatusBadge({ status }) {
 }
 
 // Workflow Modal Component
-function WorkflowModal({ isOpen, onClose, report, authUser }) {
+function WorkflowModal({ isOpen, onClose, report, authUser, mechanics = [] }) {
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [inventory, setInventory] = useState([]);
@@ -78,7 +82,8 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
     const [scheduleData, setScheduleData] = useState({
         repair_date: '',
         repair_time: '',
-        repair_location: ''
+        repair_location: '',
+        assign_mechanics: ''
     });
     const [errorMessage, setErrorMessage] = useState(null);
 
@@ -186,31 +191,31 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="fixed inset-0 bg-black bg-opacity-25 transition-opacity" onClick={onClose} />
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={onClose} />
                 
-                <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl">
+                <div className="relative w-full max-w-4xl bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/20 overflow-hidden">
                     {/* Progress Stepper */}
-                    <div className="border-b border-gray-200 px-6 py-7">
+                    <div className="border-b border-slate-200/50 bg-white/50 px-6 py-7">
                         <div className="flex items-center justify-between">
                             {steps.map((step, index) => (
                                 <div key={step.id} className="flex items-center">
                                     <div className="flex items-center">
-                                        <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors ${
+                                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 shadow-sm ${
                                             currentStep >= step.id 
-                                                ? 'bg-blue-600 border-blue-600 text-white' 
-                                                : 'bg-white border-gray-300 text-gray-400'
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-200' 
+                                                : 'bg-white border-slate-200 text-slate-400'
                                         }`}>
-                                            <Icon name={step.icon} className="w-4 h-4" />
+                                            <Icon name={step.icon} className="w-5 h-5" />
                                         </div>
-                                        <span className={`ml-2 text-xs font-medium ${
-                                            currentStep >= step.id ? 'text-blue-600' : 'text-gray-400'
+                                        <span className={`ml-3 text-sm font-bold tracking-wide ${
+                                            currentStep >= step.id ? 'text-indigo-700' : 'text-slate-400'
                                         }`}>
                                             {step.name}
                                         </span>
                                     </div>
                                     {index < steps.length - 1 && (
-                                        <div className={`w-12 h-0.5 mx-2 ${
-                                            currentStep > step.id ? 'bg-blue-600' : 'bg-gray-300'
+                                        <div className={`w-16 h-1 mx-4 rounded-full transition-all duration-300 ${
+                                            currentStep > step.id ? 'bg-indigo-600' : 'bg-slate-200'
                                         }`} />
                                     )}
                                 </div>
@@ -244,6 +249,7 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
                             <Step3Scheduling 
                                 scheduleData={scheduleData}
                                 setScheduleData={setScheduleData}
+                                mechanics={mechanics}
                             />
                         )}
                         {currentStep === 4 && (
@@ -251,18 +257,19 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
                                 report={report}
                                 selectedParts={selectedParts}
                                 scheduleData={scheduleData}
+                                mechanics={mechanics}
                             />
                         )}
                     </div>
 
                     {/* Navigation */}
-                    <div className="border-t border-gray-200 px-6 py-3 bg-gray-50">
+                    <div className="border-t border-slate-200/50 px-6 py-4 bg-slate-50/50 backdrop-blur-md">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 {currentStep > 1 && (
                                     <button
                                         onClick={handlePrevious}
-                                        className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                                     >
                                         <Icon name="arrowLeft" className="w-4 h-4" />
                                         Previous
@@ -270,7 +277,7 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
                                 )}
                                 <button
                                     onClick={onClose}
-                                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="px-5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                                 >
                                     Cancel
                                 </button>
@@ -279,16 +286,16 @@ function WorkflowModal({ isOpen, onClose, report, authUser }) {
                             {currentStep < 4 ? (
                                 <button
                                     onClick={handleNext}
-                                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
                                 >
-                                    Next
+                                    Next Step
                                     <Icon name="arrowRight" className="w-4 h-4" />
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleConfirm}
                                     disabled={loading}
-                                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                    className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 disabled:opacity-50"
                                 >
                                     <Icon name="check" className="w-4 h-4" />
                                     {loading ? 'Processing...' : 'Confirm Maintenance'}
@@ -327,15 +334,15 @@ function ViewModal({ isOpen, onClose, report }) {
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="fixed inset-0 bg-black bg-opacity-25 transition-opacity" onClick={onClose} />
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={onClose} />
                 
-                <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl">
+                <div className="relative w-full max-w-3xl bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/20 overflow-hidden">
                     {/* Header */}
-                    <div className="border-b border-gray-200 px-6 py-4">
+                    <div className="border-b border-slate-200/50 bg-white/50 px-6 py-5">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold text-gray-900">Maintenance Record</h2>
-                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-                                <Icon name="close" className="w-5 h-5 text-gray-500" />
+                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Maintenance Record</h2>
+                            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                                <Icon name="close" className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
@@ -343,23 +350,23 @@ function ViewModal({ isOpen, onClose, report }) {
                     {/* Content */}
                     <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
                         {/* Status Badge */}
-                        <div className="mb-6">
-                            <span className={`inline-flex px-4 py-2 text-sm font-medium rounded-lg border ${getStatusColor(report.status)}`}>
+                        <div className="mb-6 flex items-center justify-between">
+                            <span className={`inline-flex px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg border shadow-sm ${getStatusColor(report.status)}`}>
                                 {report.status?.replace('_', ' ')}
                             </span>
                         </div>
 
                         {/* Report Details */}
-                        <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Details</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white rounded-2xl p-5 mb-6 border border-slate-100 shadow-sm">
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Report Details</h3>
+                            <div className="grid grid-cols-2 gap-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Report ID</label>
-                                    <p className="text-base font-medium text-gray-900">#{report.id}</p>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Report ID</label>
+                                    <p className="text-base font-black text-slate-900 mt-1">#{report.id}</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Driver</label>
-                                    <p className="text-base font-medium text-gray-900">
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Driver</label>
+                                    <p className="text-base font-bold text-slate-900 mt-1">
                                         {report.driver?.user?.first_name && report.driver?.user?.last_name 
                                             ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
                                             : report.driver?.user?.name || `DRV-${report.driver_id}`
@@ -367,22 +374,24 @@ function ViewModal({ isOpen, onClose, report }) {
                                     </p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Vehicle Type</label>
-                                    <p className="text-base font-medium text-gray-900">{report.truck?.vehicle_type || 'Unknown'}</p>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Vehicle Type</label>
+                                    <p className="text-base font-bold text-slate-900 mt-1">{report.truck?.vehicle_type || 'Unknown'}</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Priority</label>
-                                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getPriorityColor(report.priority_level)}`}>
-                                        {report.priority_level}
-                                    </span>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Priority</label>
+                                    <div className="mt-1">
+                                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getPriorityColor(report.priority_level)}`}>
+                                            {report.priority_level}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">Issue</label>
-                                    <p className="text-base font-medium text-gray-900">{report.issue_title}</p>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Issue</label>
+                                    <p className="text-base font-bold text-slate-900">{report.issue_title}</p>
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
-                                    <p className="text-sm text-gray-700 bg-white rounded-lg p-3 border border-gray-200">
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</label>
+                                    <p className="text-sm font-medium text-slate-600 bg-slate-50 rounded-xl p-4 border border-slate-100">
                                         {report.issue_description}
                                     </p>
                                 </div>
@@ -391,27 +400,27 @@ function ViewModal({ isOpen, onClose, report }) {
 
                         {/* Maintenance Schedule */}
                         {report.maintenance && (
-                            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                    <Icon name="calendar" className="w-5 h-5 inline mr-2" />
+                            <div className="bg-indigo-50 rounded-2xl p-5 mb-6 border border-indigo-100 shadow-sm">
+                                <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-4 flex items-center">
+                                    <Icon name="calendar" className="w-4 h-4 inline mr-2" />
                                     Scheduled Maintenance
                                 </h3>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-3 gap-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-500">Date</label>
-                                        <p className="text-base font-medium text-gray-900">
+                                        <label className="block text-xs font-semibold text-indigo-400 uppercase tracking-wider">Date</label>
+                                        <p className="text-base font-bold text-indigo-950 mt-1">
                                             {report.maintenance.repair_date}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-500">Time</label>
-                                        <p className="text-base font-medium text-gray-900">
+                                        <label className="block text-xs font-semibold text-indigo-400 uppercase tracking-wider">Time</label>
+                                        <p className="text-base font-bold text-indigo-950 mt-1">
                                             {report.maintenance.repair_time}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-500">Location</label>
-                                        <p className="text-base font-medium text-gray-900">
+                                        <label className="block text-xs font-semibold text-indigo-400 uppercase tracking-wider">Location</label>
+                                        <p className="text-base font-bold text-indigo-950 mt-1">
                                             {report.maintenance.repair_location}
                                         </p>
                                     </div>
@@ -421,14 +430,14 @@ function ViewModal({ isOpen, onClose, report }) {
 
                         {/* Completion Info */}
                         {report.completed_at && (
-                            <div className="bg-emerald-50 rounded-xl p-4">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                    <Icon name="check" className="w-5 h-5 inline mr-2" />
+                            <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 shadow-sm">
+                                <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-4 flex items-center">
+                                    <Icon name="check" className="w-4 h-4 inline mr-2" />
                                     Completion Information
                                 </h3>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500">Completed On</label>
-                                    <p className="text-base font-medium text-gray-900">
+                                    <label className="block text-xs font-semibold text-emerald-500 uppercase tracking-wider">Completed On</label>
+                                    <p className="text-base font-bold text-emerald-950 mt-1">
                                         {new Date(report.completed_at).toLocaleDateString('en-US', { 
                                             month: 'long', day: 'numeric', year: 'numeric' 
                                         })}
@@ -439,10 +448,10 @@ function ViewModal({ isOpen, onClose, report }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                    <div className="border-t border-slate-200/50 px-6 py-4 bg-slate-50/50 backdrop-blur-md flex justify-end">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                         >
                             Close
                         </button>
@@ -473,11 +482,11 @@ function Step1ReportDetails({ report }) {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Maintenance Report Details</h2>
-                <p className="text-gray-600">Review the submitted maintenance report information</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Maintenance Report Details</h2>
+                <p className="text-slate-500 font-medium">Review the submitted maintenance report information</p>
             </div>
             
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Driver</label>
@@ -546,14 +555,14 @@ function Step2PartsSelection({ inventory, selectedParts, onPartSelection }) {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Select Parts From Inventory</h2>
-                <p className="text-gray-600">Choose the parts needed for this maintenance job</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Select Parts From Inventory</h2>
+                <p className="text-slate-500 font-medium">Choose the parts needed for this maintenance job</p>
             </div>
             
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-5">
                 {/* Parts Table */}
                 <div className="col-span-2">
-                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl overflow-hidden">
                         <div className="max-h-80 overflow-y-auto">
                             {inventory.length === 0 ? (
                                 <div className="p-8 text-center">
@@ -623,8 +632,8 @@ function Step2PartsSelection({ inventory, selectedParts, onPartSelection }) {
 
                 {/* Summary Card */}
                 <div className="col-span-1">
-                    <div className="bg-white border border-gray-200 rounded-xl p-4 sticky top-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Parts Summary</h3>
+                    <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5 sticky top-6">
+                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Selected Parts Summary</h3>
                         
                         <div className="space-y-3">
                             {selectedParts.length > 0 ? (
@@ -660,15 +669,15 @@ function Step2PartsSelection({ inventory, selectedParts, onPartSelection }) {
 }
 
 // Step 3: Scheduling
-function Step3Scheduling({ scheduleData, setScheduleData }) {
+function Step3Scheduling({ scheduleData, setScheduleData, mechanics = [] }) {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Maintenance Scheduling</h2>
-                <p className="text-gray-600">Set up the repair schedule</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Maintenance Scheduling</h2>
+                <p className="text-slate-500 font-medium">Set up the repair schedule</p>
             </div>
             
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -713,6 +722,26 @@ function Step3Scheduling({ scheduleData, setScheduleData }) {
                         />
                     </div>
                     
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <Icon name="user" className="w-4 h-4 inline mr-2" />
+                            Assign Mechanic *
+                        </label>
+                        <select
+                            value={scheduleData.assign_mechanics}
+                            onChange={(e) => setScheduleData({ ...scheduleData, assign_mechanics: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            required
+                        >
+                            <option value="">Select a Mechanic</option>
+                            {mechanics.map((mechanic) => (
+                                <option key={mechanic.user_id} value={mechanic.user_id}>
+                                    {mechanic.first_name && mechanic.last_name ? `${mechanic.first_name} ${mechanic.last_name}` : mechanic.username || mechanic.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -720,39 +749,43 @@ function Step3Scheduling({ scheduleData, setScheduleData }) {
 }
 
 // Step 4: Review & Confirm
-function Step4Review({ report, selectedParts, scheduleData }) {
+function Step4Review({ report, selectedParts, scheduleData, mechanics = [] }) {
+    const assignedMechanic = mechanics.find(m => m.user_id.toString() === scheduleData.assign_mechanics?.toString());
+    const mechanicName = assignedMechanic 
+        ? (assignedMechanic.first_name && assignedMechanic.last_name ? `${assignedMechanic.first_name} ${assignedMechanic.last_name}` : assignedMechanic.username || assignedMechanic.name)
+        : 'Not Assigned';
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">Review & Confirm</h2>
-                <p className="text-gray-600">Review all details before confirming the maintenance workflow</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Review & Confirm</h2>
+                <p className="text-slate-500 font-medium">Review all details before confirming the maintenance workflow</p>
             </div>
             
             {/* Alert Box */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-indigo-50/80 backdrop-blur-sm border border-indigo-200 rounded-2xl p-5">
                 <div className="flex items-start gap-3">
-                    <Icon name="alert" className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <Icon name="alert" className="w-5 h-5 text-indigo-600 mt-0.5" />
                     <div>
-                        <h4 className="text-sm font-semibold text-blue-900">Confirmation Required</h4>
-                        <p className="text-sm text-blue-700 mt-1">
-                            Please review all details carefully. Once confirmed, this maintenance workflow will be processed and notifications will be sent to the assigned mechanic.
+                        <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wider">Confirmation Required</h4>
+                        <p className="text-sm font-medium text-indigo-700 mt-1">
+                            Please review all details carefully. Once confirmed, this maintenance workflow will be processed and notifications will be sent to the assigned mechanic ({mechanicName}).
                         </p>
                     </div>
                 </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
                 {/* Report Summary */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Maintenance Report Summary</h3>
+                <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Maintenance Report Summary</h3>
                     <div className="space-y-3">
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Report ID</span>
-                            <span className="text-sm font-medium text-gray-900">#{report.id}</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Report ID</span>
+                            <span className="text-sm font-black text-slate-900">#{report.id}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Driver</span>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Driver</span>
+                            <span className="text-sm font-bold text-slate-900">
                                 {report.driver?.user?.first_name && report.driver?.user?.last_name 
                                     ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
                                     : report.driver?.user?.name || `DRV-${report.driver_id}`
@@ -760,23 +793,27 @@ function Step4Review({ report, selectedParts, scheduleData }) {
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Vehicle Type</span>
-                            <span className="text-sm font-medium text-gray-900">{report.truck?.vehicle_type || 'Unknown'}</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Vehicle Type</span>
+                            <span className="text-sm font-bold text-slate-900">{report.truck?.vehicle_type || 'Unknown'}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Issue</span>
-                            <span className="text-sm font-medium text-gray-900">{report.issue_title}</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Issue</span>
+                            <span className="text-sm font-bold text-slate-900">{report.issue_title}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Priority</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Priority</span>
                             <StatusBadge status={report.priority_level} />
+                        </div>
+                        <div className="flex justify-between border-t border-slate-200/50 pt-3 mt-1">
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Assigned Mechanic</span>
+                            <span className="text-sm font-bold text-indigo-700">{mechanicName}</span>
                         </div>
                     </div>
                 </div>
                 
                 {/* Parts Summary */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Parts Summary</h3>
+                <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Selected Parts Summary</h3>
                     <div className="space-y-3">
                         {selectedParts.length > 0 ? (
                             <>
@@ -801,12 +838,12 @@ function Step4Review({ report, selectedParts, scheduleData }) {
                 </div>
                 
                 {/* Schedule Details */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Schedule Details</h3>
+                <div className="bg-white/50 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Schedule Details</h3>
                     <div className="space-y-3">
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Date</span>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Date</span>
+                            <span className="text-sm font-bold text-slate-900">
                                 {new Date(scheduleData.repair_date).toLocaleDateString('en-US', { 
                                     month: 'long', 
                                     day: 'numeric', 
@@ -815,19 +852,19 @@ function Step4Review({ report, selectedParts, scheduleData }) {
                             </span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Time</span>
-                            <span className="text-sm font-medium text-gray-900">{scheduleData.repair_time}</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Time</span>
+                            <span className="text-sm font-bold text-slate-900">{scheduleData.repair_time}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Location</span>
-                            <span className="text-sm font-medium text-gray-900">{scheduleData.repair_location}</span>
+                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Location</span>
+                            <span className="text-sm font-bold text-slate-900">{scheduleData.repair_location}</span>
                         </div>
                                             </div>
                 </div>
                 
                 {/* Final Summary */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Final Summary</h3>
+                <div className="bg-emerald-50/80 backdrop-blur-sm border border-emerald-200 shadow-sm rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-4">Final Summary</h3>
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <Icon name="check" className="w-5 h-5 text-green-600" />
@@ -852,12 +889,24 @@ function Step4Review({ report, selectedParts, scheduleData }) {
     );
 }
 
-const FleetManagement = ({ authUser, reports: initialReports }) => {
+const FleetManagement = ({ authUser, reports: initialReports, mechanics = [] }) => {
     const [reports, setReports] = useState(initialReports || []);
     const [loading, setLoading] = useState(false);
     const [showWorkflowModal, setShowWorkflowModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
+    const [activeTab, setActiveTab] = useState('driver-reports'); // 'driver-reports' or 'mechanic-inspections'
+    const [inspectionReports, setInspectionReports] = useState([]);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [selectedInspection, setSelectedInspection] = useState(null);
+    const [scheduleData, setScheduleData] = useState({
+        mechanic_id: '',
+        repair_date: '',
+        repair_time: '',
+        repair_location: '',
+        parts: []
+    });
+    const [availableMechanics, setAvailableMechanics] = useState([]);
 
     // Fetch reports data
     const fetchReports = () => {
@@ -871,10 +920,46 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
             });
     };
 
+    // Fetch mechanic inspection reports
+    const fetchInspectionReports = () => {
+        fetch('/office-staff/maintenance/mechanic-inspection-reports')
+            .then(res => res.json())
+            .then(data => {
+                setInspectionReports(data.reports || []);
+            })
+            .catch(error => {
+                console.error('Error fetching inspection reports:', error);
+            });
+    };
+
+    // Fetch available mechanics
+    const fetchMechanics = () => {
+        console.log('Fetching mechanics...');
+        fetch('/api/mechanics')
+            .then(res => {
+                console.log('Mechanics response status:', res.status);
+                return res.json();
+            })
+            .then(data => {
+                console.log('Mechanics data:', data);
+                if (data.success && data.mechanics) {
+                    console.log('Setting available mechanics:', data.mechanics);
+                    setAvailableMechanics(data.mechanics);
+                } else {
+                    console.log('No mechanics in response or success is false');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching mechanics:', error);
+            });
+    };
+
     useEffect(() => {
         if (!initialReports?.length) {
             fetchReports();
         }
+        fetchInspectionReports();
+        fetchMechanics();
     }, []);
 
     const handleApprove = (reportId) => {
@@ -909,36 +994,83 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
         );
     };
 
-    const handleStart = (reportId) => {
-        setLoading(true);
-        router.patch(`/office-staff/maintenance/driver-reports/${reportId}/status`, 
-            { status: 'in_progress' }, 
-            {
-                onSuccess: () => {
-                    setLoading(false);
-                    fetchReports();
-                },
-                onError: () => {
-                    setLoading(false);
-                }
-            }
-        );
+    const handleScheduleMaintenance = (inspection) => {
+        setSelectedInspection(inspection);
+        setScheduleData({
+            mechanic_id: inspection.mechanic?.user_id || '',
+            repair_date: '',
+            repair_time: '',
+            repair_location: '',
+            parts: []
+        });
+        setShowScheduleModal(true);
     };
 
-    const handleComplete = (reportId) => {
+    const handleConfirmSchedule = () => {
         setLoading(true);
-        router.patch(`/office-staff/maintenance/driver-reports/${reportId}/status`, 
-            { status: 'completed' }, 
-            {
-                onSuccess: () => {
-                    setLoading(false);
-                    fetchReports();
-                },
-                onError: () => {
-                    setLoading(false);
-                }
+        // Send schedule request via fetch with CSRF token
+        fetch(`/office-staff/maintenance/mechanic-inspection-reports/${selectedInspection.id}/schedule-maintenance`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            },
+            body: JSON.stringify(scheduleData),
+        })
+        .then(res => {
+            if (!res.ok) {
+                // Laravel may return HTML (e.g., 419 CSRF page)
+                return res.text().then(text => { throw new Error(text); });
             }
-        );
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                setShowScheduleModal(false);
+                fetchInspectionReports();
+                // Refresh driver reports if function exists
+                if (typeof fetchReports === 'function') {
+                    fetchReports();
+                }
+                setLoading(false);
+            } else {
+                alert(data.message || 'Failed to schedule maintenance');
+                setLoading(false);
+            }
+        })
+        .catch(error => {
+            console.error('Error scheduling maintenance:', error);
+            alert('Failed to schedule maintenance');
+            setLoading(false);
+        });
+    };
+
+    const handleUpdateInspectionStatus = (inspectionId, status) => {
+        setLoading(true);
+        fetch(`/office-staff/maintenance/mechanic-inspection-reports/${inspectionId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            },
+            body: JSON.stringify({ status })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                fetchInspectionReports();
+            } else {
+                alert(data.message || 'Failed to update status');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating status:', error);
+            alert('Failed to update status');
+        })
+        .finally(() => {
+            setLoading(false);
+        });
     };
 
     const getPriorityColor = (priority) => {
@@ -968,199 +1100,322 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
                 return 'text-blue-600 bg-blue-50 border-blue-200';
             case 'completed':
                 return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+            case 'reviewed':
+                return 'text-blue-600 bg-blue-50 border-blue-200';
+            case 'scheduled':
+                return 'text-green-600 bg-green-50 border-green-200';
+            default:
+                return 'text-gray-600 bg-gray-50 border-gray-200';
+        }
+    };
+
+    const getConditionColor = (condition) => {
+        switch (condition?.toLowerCase()) {
+            case 'good':
+                return 'text-green-600 bg-green-50 border-green-200';
+            case 'fair':
+                return 'text-amber-600 bg-amber-50 border-amber-200';
+            case 'poor':
+                return 'text-orange-600 bg-orange-50 border-orange-200';
+            case 'critical':
+                return 'text-red-600 bg-red-50 border-red-200';
             default:
                 return 'text-gray-600 bg-gray-50 border-gray-200';
         }
     };
 
     return (
-        <>
+        <OfficeStaffLayout activeMenu="maintenance" user={authUser}>
             <Head title="Fleet Management" />
-            <OfficeStaffLayout user={authUser}>
-                <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-                    {/* Header */}
-                    <div className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-                        <div className="max-w-7xl mx-auto px-6 py-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h1 className="text-3xl font-light tracking-tight text-slate-900">Fleet Management</h1>
-                                    <p className="text-sm text-slate-500 mt-1 font-light">Maintenance reports and fleet operations</p>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <button 
-                                        onClick={fetchReports}
-                                        className="px-4 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all duration-200 shadow-sm"
-                                    >
-                                        Refresh
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            <div className="max-w-7xl mx-auto pb-12">
+                {/* Header */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-10 mt-6">
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Fleet Management</h1>
+                        <p className="text-slate-500 font-medium">Maintenance reports and fleet operations</p>
                     </div>
+                    <div className="flex items-center space-x-3">
+                        <button 
+                            onClick={fetchReports}
+                            className="px-4 py-2.5 bg-white/70 backdrop-blur-md border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2 font-semibold text-sm"
+                        >
+                            Refresh Data
+                        </button>
+                    </div>
+                </div>
 
-                    {/* Main Content */}
-                    <div className="max-w-7xl mx-auto px-6 py-8">
-                        {/* Stats Overview */}
-                        <div className="grid grid-cols-4 gap-4 mb-8">
-                            <div className="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm">
-                                <div className="text-2xl font-light text-slate-900">{reports.length}</div>
-                                <div className="text-xs text-slate-500 font-light mt-1">Total Reports</div>
-                            </div>
-                            <div className="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm">
-                                <div className="text-2xl font-light text-amber-600">
-                                    {reports.filter(r => r.status === 'pending').length}
-                                </div>
-                                <div className="text-xs text-slate-500 font-light mt-1">Pending</div>
-                            </div>
-                            <div className="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm">
-                                <div className="text-2xl font-light text-green-600">
-                                    {reports.filter(r => r.status === 'approved').length}
-                                </div>
-                                <div className="text-xs text-slate-500 font-light mt-1">Approved</div>
-                            </div>
-                            <div className="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-xl p-4 shadow-sm">
-                                <div className="text-2xl font-light text-red-600">
-                                    {reports.filter(r => r.status === 'rejected').length}
-                                </div>
-                                <div className="text-xs text-slate-500 font-light mt-1">Rejected</div>
-                            </div>
+                    <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/20 p-6 mb-8">
+                        {/* Tab Navigation */}
+                        <div className="flex space-x-2 border-b border-slate-100 pb-4">
+                            <button
+                                onClick={() => setActiveTab('driver-reports')}
+                                className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                                    activeTab === 'driver-reports'
+                                        ? 'bg-indigo-50 text-indigo-700 shadow-sm'
+                                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                }`}
+                            >
+                                Driver Reports
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('mechanic-inspections')}
+                                className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                                    activeTab === 'mechanic-inspections'
+                                        ? 'bg-indigo-50 text-indigo-700 shadow-sm'
+                                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                }`}
+                            >
+                                Mechanic Inspections
+                            </button>
                         </div>
 
-                        {/* Table */}
-                        <div className="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-slate-200 bg-slate-50/50">
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Report ID</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Driver</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Vehicle Type</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Issue Details</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Priority</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Date</th>
-                                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200">
-                                        {reports.map((report) => (
-                                            <tr key={report.id} className="hover:bg-slate-50/30 transition-colors duration-150">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-900">
-                                                    #{report.id}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-600">
-                                                    {report.driver?.user?.first_name && report.driver?.user?.last_name 
-                                                        ? `${report.driver.user.first_name} ${report.driver.user.last_name}`
-                                                        : report.driver?.user?.name || `DRV-${report.driver_id}`
-                                                    }
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-600">
-                                                    {report.truck?.vehicle_type || 'Unknown'}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm font-light text-slate-700">
-                                                    <div className="max-w-xs">
-                                                        <div className="font-medium text-slate-900 truncate">
-                                                            {report.issue_title || 'No title'}
-                                                        </div>
-                                                        <div className="text-xs text-slate-500 mt-1 truncate">
-                                                            {report.issue_description || 'No description'}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(report.priority_level)}`}>
-                                                        {report.priority_level || 'Medium'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(report.status)}`}>
-                                                        {report.status || 'Pending'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-light text-slate-600">
-                                                    {new Date(report.created_at).toLocaleDateString('en-US', { 
-                                                        month: 'short', 
-                                                        day: 'numeric', 
-                                                        year: 'numeric' 
-                                                    })}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    {report.status === 'pending' && (
-                                                        <div className="flex items-center space-x-2">
-                                                            <button
-                                                                onClick={() => handleApprove(report.id)}
-                                                                disabled={loading}
-                                                                className="px-3 py-1 text-xs font-medium text-white bg-green-600 border border-green-600 rounded-md hover:bg-green-700 transition-colors duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReject(report.id)}
-                                                                disabled={loading}
-                                                                className="px-3 py-1 text-xs font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 transition-colors duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {report.status === 'approved' && !report.has_scheduled && (
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedReport(report);
-                                                                setShowWorkflowModal(true);
-                                                            }}
-                                                            className="px-3 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors duration-200 shadow-sm"
-                                                        >
-                                                            View Process
-                                                        </button>
-                                                    )}
-                                                    {report.status === 'approved' && report.has_scheduled && (
-                                                        <button
-                                                            onClick={() => handleStart(report.id)}
-                                                            disabled={loading}
-                                                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            Start
-                                                        </button>
-                                                    )}
-                                                    {report.status === 'in_progress' && (
-                                                        <button
-                                                            onClick={() => handleComplete(report.id)}
-                                                            disabled={loading}
-                                                            className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 border border-emerald-600 rounded-md hover:bg-emerald-700 transition-colors duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            Complete
-                                                        </button>
-                                                    )}
-                                                    {report.status === 'completed' && (
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedReport(report);
-                                                                setShowViewModal(true);
-                                                            }}
-                                                            className="px-3 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors duration-200 shadow-sm"
-                                                        >
-                                                            View
-                                                        </button>
-                                                    )}
-                                                    {report.status !== 'pending' && report.status !== 'approved' && report.status !== 'in_progress' && report.status !== 'completed' && (
-                                                        <span className="text-xs font-light text-slate-400 italic">
-                                                            {report.status}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                
-                                {reports.length === 0 && (
-                                    <div className="text-center py-12">
-                                        <div className="text-sm font-light text-slate-400">No maintenance reports found</div>
+                        {/* Driver Reports Tab */}
+                        {activeTab === 'driver-reports' && (
+                            <div className="mt-6">
+                                {/* Stats Overview */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-slate-800">{reports.length}</div>
+                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Total Reports</div>
                                     </div>
-                                )}
+                                    <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-amber-700">
+                                            {reports.filter(r => r.status === 'pending').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-amber-600 uppercase tracking-wider mt-1">Pending</div>
+                                    </div>
+                                    <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-emerald-700">
+                                            {reports.filter(r => r.status === 'approved').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mt-1">Approved</div>
+                                    </div>
+                                    <div className="bg-rose-50 rounded-2xl border border-rose-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-rose-700">
+                                            {reports.filter(r => r.status === 'rejected').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-rose-600 uppercase tracking-wider mt-1">Rejected</div>
+                                    </div>
+                                </div>
+
+                                {/* Table */}
+                                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm whitespace-nowrap">
+                                            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-5">Report ID</th>
+                                                    <th className="px-6 py-5">Vehicle & Driver</th>
+                                                    <th className="px-6 py-5">Issue Details</th>
+                                                    <th className="px-6 py-5">Priority</th>
+                                                    <th className="px-6 py-5">Status</th>
+                                                    <th className="px-6 py-5">Date</th>
+                                                    <th className="px-6 py-5 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {reports.map((report) => (
+                                                    <tr key={report.id} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="px-6 py-4 font-bold text-slate-900">
+                                                            #{report.id}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800">{report.truck?.unique_id || 'N/A'}</span>
+                                                                <span className="text-xs font-medium text-slate-500">{report.driver?.user?.first_name && report.driver?.user?.last_name ? `${report.driver.user.first_name} ${report.driver.user.last_name}` : report.driver?.user?.name || `DRV-${report.driver_id}`}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="max-w-[200px] whitespace-normal">
+                                                                <p className="font-bold text-slate-800 text-sm line-clamp-1">{report.issue_title || 'No title'}</p>
+                                                                <p className="text-xs text-slate-500 font-medium line-clamp-1 mt-0.5">{report.issue_description || 'No description'}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getPriorityColor(report.priority_level)}`}>
+                                                                {report.priority_level || 'Medium'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getStatusColor(report.status)}`}>
+                                                                {report.status || 'Pending'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-medium text-slate-600">
+                                                            {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            {report.status === 'pending' && (
+                                                                <div className="flex items-center justify-end space-x-2">
+                                                                    <button
+                                                                        onClick={() => handleApprove(report.id)}
+                                                                        disabled={loading}
+                                                                        className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                                                                    >
+                                                                        Approve
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleReject(report.id)}
+                                                                        disabled={loading}
+                                                                        className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors disabled:opacity-50"
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                            {report.status === 'approved' && !report.has_scheduled && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedReport(report);
+                                                                        setShowWorkflowModal(true);
+                                                                    }}
+                                                                    className="px-4 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                                                >
+                                                                    Process
+                                                                </button>
+                                                            )}
+                                                            {report.status === 'approved' && report.has_scheduled && (
+                                                                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">
+                                                                    Scheduled
+                                                                </span>
+                                                            )}
+                                                            {report.status === 'in_progress' && (
+                                                                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg">
+                                                                    In Progress
+                                                                </span>
+                                                            )}
+                                                            {report.status === 'completed' && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedReport(report);
+                                                                        setShowViewModal(true);
+                                                                    }}
+                                                                    className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        
+                                        {reports.length === 0 && (
+                                            <div className="text-center py-12">
+                                                <div className="text-sm font-bold text-slate-400">No maintenance reports found</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Mechanic Inspections Tab */}
+                        {activeTab === 'mechanic-inspections' && (
+                            <div className="mt-6">
+                                {/* Stats Overview */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-slate-800">{inspectionReports.length}</div>
+                                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">Total Inspections</div>
+                                    </div>
+                                    <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-amber-700">
+                                            {inspectionReports.filter(r => r.status === 'pending').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-amber-600 uppercase tracking-wider mt-1">Pending Review</div>
+                                    </div>
+                                    <div className="bg-rose-50 rounded-2xl border border-rose-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-rose-700">
+                                            {inspectionReports.filter(r => r.overall_condition === 'critical').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-rose-600 uppercase tracking-wider mt-1">Critical Condition</div>
+                                    </div>
+                                    <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-5 shadow-sm">
+                                        <div className="text-3xl font-black text-emerald-700">
+                                            {inspectionReports.filter(r => r.status === 'scheduled').length}
+                                        </div>
+                                        <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mt-1">Scheduled</div>
+                                    </div>
+                                </div>
+
+                                {/* Table */}
+                                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm whitespace-nowrap">
+                                            <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-5">Inspection ID</th>
+                                                    <th className="px-6 py-5">Truck & Mechanic</th>
+                                                    <th className="px-6 py-5">Condition</th>
+                                                    <th className="px-6 py-5">Issue Details</th>
+                                                    <th className="px-6 py-5">Status</th>
+                                                    <th className="px-6 py-5">Date</th>
+                                                    <th className="px-6 py-5 text-right">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {inspectionReports.map((inspection) => (
+                                                    <tr key={inspection.id} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="px-6 py-4 font-bold text-slate-900">
+                                                            #{inspection.id}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800">{inspection.truck?.unique_id || 'N/A'}</span>
+                                                                <span className="text-xs font-medium text-slate-500">{inspection.mechanic?.name || 'Unknown Mechanic'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getConditionColor(inspection.overall_condition)}`}>
+                                                                {inspection.overall_condition || 'Good'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="max-w-[200px] whitespace-normal">
+                                                                <p className="font-bold text-slate-800 text-sm line-clamp-1">{inspection.issue_title || 'No issues'}</p>
+                                                                <p className="text-xs text-slate-500 font-medium line-clamp-1 mt-0.5">{inspection.issue_description || '-'}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getStatusColor(inspection.status)}`}>
+                                                                {inspection.status || 'Pending'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-medium text-slate-600">
+                                                            {new Date(inspection.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            {(inspection.status === 'pending' || inspection.status === 'reviewed') && inspection.issue_title && (
+                                                                <button
+                                                                    onClick={() => handleScheduleMaintenance(inspection)}
+                                                                    disabled={loading}
+                                                                    className="px-4 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+                                                                >
+                                                                    Schedule Repair
+                                                                </button>
+                                                            )}
+                                                            {inspection.status === 'scheduled' && (
+                                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg">
+                                                                    Scheduled
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        
+                                        {inspectionReports.length === 0 && (
+                                            <div className="text-center py-12">
+                                                <div className="text-sm font-bold text-slate-400">No inspection reports found</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 
@@ -1173,6 +1428,7 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
                     }}
                     report={selectedReport}
                     authUser={authUser}
+                    mechanics={mechanics}
                 />
 
                 {/* View Modal (Read-only for completed reports) */}
@@ -1184,8 +1440,124 @@ const FleetManagement = ({ authUser, reports: initialReports }) => {
                     }}
                     report={selectedReport}
                 />
-            </OfficeStaffLayout>
-        </>
+
+                {/* Schedule Maintenance Modal */}
+                {showScheduleModal && selectedInspection && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto">
+                        <div className="flex min-h-screen items-center justify-center p-4">
+                            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setShowScheduleModal(false)} />
+                            
+                            <div className="relative w-full max-w-2xl bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/20 overflow-hidden">
+                                <div className="border-b border-slate-200/50 bg-white/50 px-6 py-5">
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Schedule Maintenance</h3>
+                                    <p className="text-sm font-medium text-slate-500 mt-1">Create maintenance schedule from inspection report #{selectedInspection.id}</p>
+                                </div>
+                                
+                                <div className="px-6 py-6 space-y-6">
+                                    {/* Inspection Details */}
+                                    <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100">
+                                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Inspection Details</h4>
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-semibold text-slate-500 uppercase tracking-wider text-xs">Truck</span>
+                                                <span className="font-bold text-slate-900">{selectedInspection.truck?.unique_id} - {selectedInspection.truck?.plate_number}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-semibold text-slate-500 uppercase tracking-wider text-xs">Condition</span>
+                                                <span className={`font-bold px-2.5 py-1 text-xs uppercase tracking-wider rounded-md border bg-white ${getConditionColor(selectedInspection.overall_condition).split(' ')[0]}`}>
+                                                    {selectedInspection.overall_condition}
+                                                </span>
+                                            </div>
+                                            {selectedInspection.issue_title && (
+                                                <div className="pt-2 border-t border-slate-200/50 mt-2">
+                                                    <span className="font-semibold text-slate-500 uppercase tracking-wider text-xs block mb-1">Issue</span>
+                                                    <span className="font-bold text-slate-900">{selectedInspection.issue_title}</span>
+                                                </div>
+                                            )}
+                                            {selectedInspection.issue_description && (
+                                                <div className="pt-2">
+                                                    <span className="font-semibold text-slate-500 uppercase tracking-wider text-xs block mb-1">Description</span>
+                                                    <div className="mt-1 text-slate-700 bg-white p-3 rounded-xl border border-slate-200 whitespace-pre-wrap font-medium text-sm">
+                                                        {selectedInspection.issue_description}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Schedule Form */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Assign Mechanic</label>
+                                            <select
+                                                value={scheduleData.mechanic_id}
+                                                onChange={(e) => setScheduleData({ ...scheduleData, mechanic_id: e.target.value })}
+                                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white font-medium text-slate-700 transition-colors"
+                                            >
+                                                <option value="">Select Mechanic</option>
+                                                {availableMechanics.map((mechanic) => (
+                                                    <option key={mechanic.user_id} value={mechanic.user_id}>
+                                                        {mechanic.firstname} {mechanic.lastname}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Repair Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={scheduleData.repair_date}
+                                                    onChange={(e) => setScheduleData({ ...scheduleData, repair_date: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium text-slate-700 transition-colors"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Repair Time</label>
+                                                <input
+                                                    type="time"
+                                                    value={scheduleData.repair_time}
+                                                    onChange={(e) => setScheduleData({ ...scheduleData, repair_time: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium text-slate-700 transition-colors"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Repair Location</label>
+                                            <input
+                                                type="text"
+                                                value={scheduleData.repair_location}
+                                                onChange={(e) => setScheduleData({ ...scheduleData, repair_location: e.target.value })}
+                                                placeholder="Enter repair location"
+                                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium text-slate-700 transition-colors"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-slate-200/50 px-6 py-4 bg-slate-50/50 backdrop-blur-md flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setShowScheduleModal(false)}
+                                        className="px-5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleConfirmSchedule}
+                                        disabled={loading}
+                                        className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Scheduling...' : 'Schedule Maintenance'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+        </OfficeStaffLayout>
     );
 };
 

@@ -73,6 +73,7 @@ class DriverController extends Controller
             if ($driver->truck) {
                 $truckInfo = [
                     'truck_id' => $driver->truck->truck_id,
+                    'unique_id' => $driver->truck->unique_id,
                     'plate_number' => $driver->truck->plate_number,
                     'vehicle_type' => $driver->truck->vehicle_type,
                     'capacity' => $driver->truck->capacity,
@@ -231,6 +232,7 @@ class DriverController extends Controller
                 'current_longitude' => 'required|numeric|between:-180,180',
                 'current_speed' => 'nullable|numeric|min:0',
                 'heading' => 'nullable|numeric|min:0|max:360',
+                'is_gps_enabled' => 'nullable|boolean',
             ]);
 
             $driver = Driver::where('user_id', $user->user_id)->first();
@@ -246,6 +248,7 @@ class DriverController extends Controller
             $driver->current_latitude = $validated['current_latitude'];
             $driver->current_longitude = $validated['current_longitude'];
             $driver->current_speed = $validated['current_speed'] ?? 0;
+            $driver->is_gps_enabled = $validated['is_gps_enabled'] ?? true;
             $driver->last_location_update = now();
             $driver->save();
 
@@ -420,13 +423,56 @@ class DriverController extends Controller
                 ], 404);
             }
 
-            // Get driver's maintenance reports with truck info
+            // Get driver's maintenance reports with truck info and maintenance schedule
             $reports = MaintenanceReport::where('driver_id', $driver->driver_id)
-                ->with(['truck'])
+                ->with(['truck', 'maintenance'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
             $formattedReports = $reports->map(function($report) {
+                // Generate notification title and message based on status
+                $notificationTitle = '';
+                $notificationMessage = '';
+                $notificationType = 'maintenance';
+                $scheduledDate = null;
+                $scheduledTime = null;
+                $location = null;
+                $estimatedDuration = null;
+                $notificationStatus = 'unread';
+
+                switch ($report->status) {
+                    case 'approved':
+                        $notificationTitle = 'Truck Maintenance Scheduled';
+                        $notificationMessage = 'Your truck has been scheduled for maintenance. ' . $report->issue_title;
+                        $notificationType = 'schedule';
+                        // Get maintenance schedule details if available
+                        if ($report->maintenance) {
+                            $scheduledDate = $report->maintenance->repair_date?->format('M d, Y');
+                            $scheduledTime = $report->maintenance->repair_time;
+                            $location = $report->maintenance->repair_location;
+                        }
+                        $notificationStatus = 'unread';
+                        break;
+                    case 'in_progress':
+                        $notificationTitle = 'Maintenance In Progress';
+                        $notificationMessage = 'Your truck maintenance is currently in progress. ' . $report->issue_title;
+                        $notificationType = 'maintenance';
+                        $notificationStatus = 'unread';
+                        break;
+                    case 'completed':
+                        $notificationTitle = 'Maintenance Completed';
+                        $notificationMessage = 'Your truck maintenance has been completed. Vehicle is ready for pickup.';
+                        $notificationType = 'general';
+                        $notificationStatus = 'unread';
+                        break;
+                    default:
+                        $notificationTitle = 'Maintenance Report';
+                        $notificationMessage = $report->issue_title;
+                        $notificationType = 'general';
+                        $notificationStatus = 'read';
+                        break;
+                }
+
                 return [
                     'id' => $report->id,
                     'issue_title' => $report->issue_title,
@@ -435,11 +481,21 @@ class DriverController extends Controller
                     'status' => $report->status,
                     'created_at' => $report->created_at,
                     'truck_id' => $report->truck_id,
+                    'unique_id' => $report->truck?->unique_id,
                     'truck' => [
                         'plate_number' => $report->truck?->plate_number,
                         'vehicle_type' => $report->truck?->vehicle_type,
                     ],
                     'mechanic' => $report->mechanic_name,
+                    // Notification fields
+                    'notification_title' => $notificationTitle,
+                    'notification_message' => $notificationMessage,
+                    'notification_type' => $notificationType,
+                    'scheduled_date' => $scheduledDate,
+                    'scheduled_time' => $scheduledTime,
+                    'location' => $location,
+                    'estimated_duration' => $estimatedDuration,
+                    'notification_status' => $notificationStatus,
                 ];
             });
 

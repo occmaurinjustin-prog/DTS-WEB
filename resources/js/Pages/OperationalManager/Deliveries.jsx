@@ -1,30 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { router, Link } from '@inertiajs/react';
 import OperationalManagerLayout from '../../Layouts/OperationalManagerLayout';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
 export default function Deliveries({ authUser, deliveries, flash }) {
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const queryClient = useQueryClient();
+
+    // Debounce search term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setCurrentPage(1); // Reset to page 1 on new search
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    // Fetch Deliveries function
+    const fetchDeliveries = async ({ queryKey }) => {
+        const [_key, page, search, status] = queryKey;
+        const response = await axios.get(`/operational-manager/api/deliveries`, {
+            params: {
+                page: page,
+                search: search,
+                status: status
+            }
+        });
+        return response.data;
+    };
+
+    const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
+        queryKey: ['om-deliveries', currentPage, debouncedSearch, filterStatus],
+        queryFn: fetchDeliveries,
+        placeholderData: (previousData) => previousData,
+    });
+
+    // Prefetch next page
+    useEffect(() => {
+        if (data?.meta && data.meta.current_page < data.meta.last_page) {
+            queryClient.prefetchQuery({
+                queryKey: ['om-deliveries', currentPage + 1, debouncedSearch, filterStatus],
+                queryFn: fetchDeliveries,
+            });
+        }
+    }, [data, currentPage, debouncedSearch, filterStatus, queryClient]);
 
     // Auto-refresh every 5 seconds for real-time updates
     useEffect(() => {
         const interval = setInterval(() => {
-            router.reload({ 
-                only: ['deliveries'], 
-                preserveScroll: true, 
+            router.reload({
+                only: ['flash'],
+                preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setLastUpdated(new Date())
             });
+            queryClient.invalidateQueries({ queryKey: ['om-deliveries'] });
         }, 5000);
 
         return () => clearInterval(interval);
     }, []);
 
     const getStatusColor = (status) => {
-        switch(status) {
+        switch (status) {
             case 'delivered': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'in_transit': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -35,7 +80,7 @@ export default function Deliveries({ authUser, deliveries, flash }) {
     };
 
     const getStatusLabel = (status) => {
-        switch(status) {
+        switch (status) {
             case 'pending': return 'Pending Approval';
             case 'approved': return 'Approved';
             case 'in_transit': return 'In Transit';
@@ -66,25 +111,14 @@ export default function Deliveries({ authUser, deliveries, flash }) {
         setSelectedDelivery(null);
     };
 
-    // Filter deliveries based on search and status filter
-    const filteredDeliveries = deliveries?.filter(delivery => {
-        const matchesSearch = !searchTerm || 
-            delivery.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.driver?.user?.firstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.driver?.user?.lastname?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesStatus = filterStatus === 'all' || delivery.delivery_status === filterStatus;
-        
-        return matchesSearch && matchesStatus;
-    }) || [];
+    const deliveriesList = data?.deliveries || [];
 
     // Calculate stats
-    const total = deliveries?.length || 0;
-    const delivered = deliveries?.filter(d => d.delivery_status === 'delivered').length || 0;
-    const inTransit = deliveries?.filter(d => d.delivery_status === 'in_transit').length || 0;
-    const pending = deliveries?.filter(d => d.delivery_status === 'pending').length || 0;
-    const approved = deliveries?.filter(d => d.delivery_status === 'approved').length || 0;
+    const total = data?.stats?.total || 0;
+    const delivered = data?.stats?.delivered || 0;
+    const inTransit = data?.stats?.in_transit || 0;
+    const pending = data?.stats?.pending || 0;
+    const approved = data?.stats?.approved || 0;
 
     return (
         <OperationalManagerLayout title="Delivery Management" authUser={authUser}>
@@ -189,8 +223,8 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="Search deliveries..."
@@ -202,7 +236,10 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                             </div>
                             <select
                                 value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
+                                onChange={(e) => {
+                                    setFilterStatus(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500/20 focus:border-gray-500 transition-all"
                             >
                                 <option value="all">All Status</option>
@@ -214,13 +251,18 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                             </select>
                         </div>
                         <div className="text-sm text-gray-500">
-                            {filteredDeliveries.length} results
+                            {data?.meta?.total || 0} results
                         </div>
                     </div>
                 </div>
 
                 {/* Deliveries Table */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden relative">
+                    {(isFetching && isPlaceholderData) && (
+                        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        </div>
+                    )}
                     <div className="overflow-x-auto">
                         <table className="min-w-full">
                             <thead className="bg-gray-50">
@@ -233,11 +275,11 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {filteredDeliveries.length > 0 ? (
-                                    filteredDeliveries.map((delivery) => (
+                                {deliveriesList.length > 0 ? (
+                                    deliveriesList.map((delivery) => (
                                         <tr key={delivery.delivery_id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap">
-                                                <span className="text-sm font-medium text-gray-900">#{delivery.tracking_number}</span>
+                                                <span className="text-sm font-medium text-gray-900">#{delivery.waybill}</span>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                 {delivery.client?.client_name}
@@ -257,7 +299,7 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                                                 {new Date(delivery.created_at).toLocaleDateString()}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap">
-                                                <button 
+                                                <button
                                                     onClick={() => openDetailModal(delivery)}
                                                     className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                                                 >
@@ -269,12 +311,35 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                                 ) : (
                                     <tr>
                                         <td colSpan="7" className="px-4 py-12 text-center">
-                                            <p className="text-gray-500">No deliveries found</p>
+                                            <p className="text-gray-500">No deliveries found matching your search.</p>
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+
+                        {/* Pagination UI */}
+                        {data?.meta && (
+                            <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+                                <button
+                                    onClick={() => setCurrentPage(old => Math.max(old - 1, 1))}
+                                    disabled={currentPage === 1 || isPlaceholderData}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    &lt; Previous
+                                </button>
+                                <span className="text-sm text-gray-700">
+                                    Page {data.meta.current_page} of {data.meta.last_page || 1}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(old => (data.meta.current_page < data.meta.last_page ? old + 1 : old))}
+                                    disabled={currentPage === data.meta.last_page || !data.meta.last_page || isPlaceholderData}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next &gt;
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -291,7 +356,7 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-slate-900">#{selectedDelivery.tracking_number}</h2>
+                                        <h2 className="text-lg font-bold text-slate-900">#{selectedDelivery.waybill}</h2>
                                         <p className="text-xs text-slate-500">{formatDate(selectedDelivery.created_at)}</p>
                                     </div>
                                 </div>
@@ -299,7 +364,7 @@ export default function Deliveries({ authUser, deliveries, flash }) {
                                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedDelivery.delivery_status)}`}>
                                         {getStatusLabel(selectedDelivery.delivery_status)}
                                     </span>
-                                    <button 
+                                    <button
                                         onClick={closeDetailModal}
                                         className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                                     >

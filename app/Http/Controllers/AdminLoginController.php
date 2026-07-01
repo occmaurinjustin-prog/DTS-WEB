@@ -12,7 +12,7 @@ class AdminLoginController extends Controller
 {
     public function showLoginForm()
     {
-        return inertia('Admin/Login');
+        return inertia('Login');
     }
 
     public function login(Request $request)
@@ -46,7 +46,12 @@ class AdminLoginController extends Controller
         }
 
         Auth::login($user, $remember);
+        
         // Don't regenerate session to allow concurrent logins
+        
+        // Store explicit identifiers for the Inertia middleware to pick up
+        $request->session()->put('user_id', $user->id);
+        $request->session()->put('role', $user->role);
 
         // Redirect based on user role
         if ($user->role === 'admin') {
@@ -67,6 +72,6 @@ class AdminLoginController extends Controller
         // Only flush specific user data, don't invalidate entire session
         $request->session()->forget(['user_id', 'role', 'auth_user']);
 
-        return redirect()->route('admin.login');
+        return redirect('/');
     }
 }

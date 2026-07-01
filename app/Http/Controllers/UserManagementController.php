@@ -5,7 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Driver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use App\Mail\AccountCreatedMail;
+
 use Illuminate\Validation\Rules\Enum;
 
 class UserManagementController extends Controller
@@ -22,94 +27,61 @@ class UserManagementController extends Controller
     public function store(Request $request)
     {
         try {
-            \Log::info('User creation request data:', $request->all());
-            
-            $isMechanic = $request->input('role') === 'mechanic';
-
+            // Validate request and prepare data
             $data = $request->validate([
                 'role' => ['required', 'string', 'in:admin,operation_manager,office_staff,driver,mechanic'],
-                'username' => $isMechanic ? 'nullable|string|max:255|unique:users,username' : 'required|string|max:255|unique:users,username',
-                'password' => $isMechanic ? 'nullable|string|min:8' : 'required|string|min:8|confirmed',
-                'email' => $isMechanic ? 'required|email|max:255' : 'nullable|email|max:255',
+                'username' => 'required|string|max:255|unique:users,username',
+                'email' => 'required|email|max:255|unique:users,email',
                 'first_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
                 'last_name' => 'required|string|max:255',
                 'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
                 'is_active' => 'nullable|boolean',
                 // Role-specific fields
-                'department' => 'nullable|string|max:255',
-                'position' => 'nullable|string|max:255',
                 'extension_no' => 'nullable|string|max:50|unique:users,extension_no',
-                'assigned_shift' => 'nullable|string|max:255',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
                 'truck_plate' => 'nullable|string|max:255',
                 'truck_vehicle_type' => 'nullable|string|max:255',
                 'truck_capacity' => 'nullable|string|max:255',
                 'truck_condition' => 'nullable|string|max:255',
-                // Mechanic face recognition
-                'face_descriptor' => 'nullable|array',
             ]);
 
-            \Log::info('Validated data:', $data);
-
-            // Validate role-specific fields
             $this->validateRoleSpecificFields($data['role'], $request);
 
-            \Log::info('Creating user with data:', [
-                'username' => $data['username'],
-                'role' => $data['role'],
-                'is_active' => $request->boolean('is_active', true)
-            ]);
+            $user = null;
+            $plainPassword = Str::random(8);
 
-            // For mechanics, auto-generate username from email and set default password
-            if ($isMechanic) {
-                $username = explode('@', $data['email'])[0] . '_' . time();
-                $password = Hash::make('mechanic_default_pass_' . time());
-            } else {
-                $username = $data['username'];
-                $password = Hash::make($data['password']);
-            }
-
-            $user = User::create([
-                'username' => $username,
-                'password' => $password,
-                'role' => $data['role'],
-                'is_active' => $request->boolean('is_active', true),
-            ]);
-
-            // Store email for mechanics
-            if ($isMechanic && !empty($data['email'])) {
-                $user->update(['email' => $data['email']]);
-            }
-
-            \Log::info('User created successfully:', ['user_id' => $user->user_id]);
-
-            // Store face descriptor and generate unique_id for mechanic
-            if ($isMechanic) {
-                $uniqueId = 'MEC-' . date('Y') . '-' . str_pad($user->user_id, 4, '0', STR_PAD_LEFT);
-
-                $updateData = [
-                    'unique_id' => $uniqueId,
-                    'email' => $data['email'] ?? null
-                ];
-
-                if (!empty($data['face_descriptor'])) {
-                    $updateData['face_descriptor'] = json_encode($data['face_descriptor']);
-                }
-
-                $user->update($updateData);
-                \Log::info('Mechanic created with unique_id and face_descriptor:', [
-                    'user_id' => $user->user_id,
-                    'unique_id' => $uniqueId,
-                    'email' => $data['email'] ?? null
+            DB::transaction(function () use ($request, $data, $plainPassword, &$user) {
+                // Create user
+                $user = User::create([
+                    'username' => $data['username'],
+                    'email' => $data['email'],
+                    'password' => Hash::make($plainPassword),
+                    'role' => $data['role'],
+                    'is_active' => $request->boolean('is_active', true),
+                    'exchangepassword' => false, // 0 = not exchanged (must change)
                 ]);
+
+                // Store role-specific data
+                $this->storeRoleSpecificData($user, $data);
+            });
+
+            // Register face for mechanics when images are present
+            // This MUST be outside the transaction because Python Face API 
+            // directly commits to the DB requiring the user_id to exist globally.
+            if ($user && $data['role'] === 'mechanic' && $request->hasFile('images')) {
+                $faceService = app(\App\Services\FaceRegistrationService::class);
+                $images = $request->file('images');
+                $success = $faceService->registerFace($user, $images);
+                if (! $success) {
+                    $user->delete();
+                    throw new \Exception('Face API failed to process the images.');
+                }
             }
-
-            // Store role-specific data
-            $this->storeRoleSpecificData($user, $data);
-
-            \Log::info('Role-specific data stored successfully');
+            if ($user && $data['email']) {
+                Mail::to($data['email'])->send(new AccountCreatedMail($user, $plainPassword));
+            }
 
             return redirect()->back()->with('success', 'User created successfully.');
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -156,7 +128,6 @@ class UserManagementController extends Controller
                 'lastname' => $data['last_name'],
                 'contact_number' => $data['phone'],
                 'extension_no' => $data['extension_no'] ?? null,
-                'assigned_shift' => $data['assigned_shift'] ?? null,
             ]);
             
             \Log::info('User data updated successfully');
@@ -219,15 +190,12 @@ class UserManagementController extends Controller
                 'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
                 // Role-specific fields
                 'extension_no' => 'nullable|string|max:50|unique:users,extension_no,' . $user->user_id . ',user_id',
-                'assigned_shift' => 'nullable|string|max:255',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
                 'truck_plate' => 'nullable|string|max:255',
                 'truck_vehicle_type' => 'nullable|string|max:255',
                 'truck_capacity' => 'nullable|string|max:255',
                 'truck_condition' => 'nullable|string|max:255',
-                // Mechanic face recognition
-                'face_descriptor' => 'nullable|array',
             ]);
 
             \Log::info('Validated data:', $data);
@@ -241,16 +209,7 @@ class UserManagementController extends Controller
                 'lastname' => $data['last_name'],
                 'contact_number' => $data['phone'],
                 'extension_no' => $data['extension_no'] ?? null,
-                'assigned_shift' => $data['assigned_shift'] ?? null,
             ]);
-
-            // Update face descriptor for mechanic
-            if ($data['role'] === 'mechanic' && !empty($data['face_descriptor'])) {
-                $user->update([
-                    'face_descriptor' => json_encode($data['face_descriptor']),
-                ]);
-                \Log::info('Face descriptor updated for mechanic:', ['user_id' => $user->user_id]);
-            }
 
             // Update password if provided
             if ($request->filled('password')) {

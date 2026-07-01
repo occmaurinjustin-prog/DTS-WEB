@@ -19,7 +19,7 @@ class Delivery extends Model
         'navigation_phase',
         'weight_tons',
         'item_description',
-        'tracking_number',
+        'waybill',
         'priority',
         'estimated_delivery_time',
         'pickup_address',
@@ -32,6 +32,11 @@ class Delivery extends Model
         'rejected_at',
         'sent_to_driver_at',
         'sent_to_driver_by',
+        'proof_image',
+        'remarks',
+        'delivered_at',
+        'actual_delivery_latitude',
+        'actual_delivery_longitude',
     ];
 
     protected $casts = [
@@ -39,6 +44,7 @@ class Delivery extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'estimated_delivery_time' => 'datetime',
+        'delivered_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -61,10 +67,7 @@ class Delivery extends Model
         return $this->belongsTo(Truck::class, 'truck_id', 'truck_id');
     }
 
-    public function locationLogs(): HasMany
-    {
-        return $this->hasMany(LocationLog::class, 'delivery_id', 'delivery_id');
-    }
+
 
     public function sentToDriverBy(): BelongsTo
     {

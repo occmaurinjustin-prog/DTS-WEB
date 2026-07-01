@@ -1,32 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
-export default function Deliveries({ authUser, pendingDeliveries, allDeliveries, flash }) {
+export default function Deliveries({ authUser, pendingDeliveries, flash }) {
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'all'
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [sentToDriver, setSentToDriver] = useState(new Set()); // Track deliveries sent to driver
+    const [currentPage, setCurrentPage] = useState(1);
+    
+    const queryClient = useQueryClient();
+
+    // Debounce search term
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setCurrentPage(1); // Reset to page 1 on new search
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    // Fetch Deliveries function
+    const fetchDeliveries = async ({ queryKey }) => {
+        const [_key, page, search, status] = queryKey;
+        const response = await axios.get(`/api/admin/deliveries`, {
+            params: {
+                page: page,
+                search: search,
+                status: status
+            }
+        });
+        return response.data;
+    };
+
+    const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
+        queryKey: ['deliveries', currentPage, debouncedSearch, filterStatus],
+        queryFn: fetchDeliveries,
+        placeholderData: (previousData) => previousData,
+    });
+
+    // Prefetch next page
+    useEffect(() => {
+        if (data?.meta && data.meta.current_page < data.meta.last_page) {
+            queryClient.prefetchQuery({
+                queryKey: ['deliveries', currentPage + 1, debouncedSearch, filterStatus],
+                queryFn: fetchDeliveries,
+            });
+        }
+    }, [data, currentPage, debouncedSearch, filterStatus, queryClient]);
 
     // Auto-refresh every 5 seconds for real-time updates
     useEffect(() => {
         const interval = setInterval(() => {
-            router.reload({ 
-                only: ['pendingDeliveries', 'allDeliveries'], 
-                preserveScroll: true, 
+            router.reload({
+                only: ['pendingDeliveries'],
+                preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => setLastUpdated(new Date())
             });
+            queryClient.invalidateQueries({ queryKey: ['deliveries'] });
         }, 5000);
 
         return () => clearInterval(interval);
     }, []);
 
     const getStatusColor = (status) => {
-        switch(status) {
+        switch (status) {
             case 'delivered': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'in_transit': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -37,7 +82,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
     };
 
     const getStatusIcon = (status) => {
-        switch(status) {
+        switch (status) {
             case 'delivered': return 'M5 13l4 4L19 7';
             case 'in_transit': return 'M13 10V3L4 14h7v7l9-11h-7z';
             case 'pending': return 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z';
@@ -48,7 +93,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
     };
 
     const getStatusLabel = (status) => {
-        switch(status) {
+        switch (status) {
             case 'pending': return 'Pending Approval';
             case 'approved': return 'Approved';
             case 'in_transit': return 'In Transit';
@@ -81,7 +126,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
     };
 
     const handleSendToDriver = (delivery) => {
-        if (confirm(`Send delivery #${delivery.tracking_number} to driver ${delivery.driver?.user?.firstname} ${delivery.driver?.user?.lastname}?`)) {
+        if (confirm(`Send delivery #${delivery.waybill} to driver ${delivery.driver?.user?.firstname} ${delivery.driver?.user?.lastname}?`)) {
             router.post(`/admin/deliveries/${delivery.delivery_id}/send-to-driver`, {
                 driver_id: delivery.driver?.driver_id,
             }, {
@@ -123,9 +168,9 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
 
     const getTimelineSteps = (delivery) => {
         const steps = [
-            { 
-                status: 'created', 
-                label: 'Request Created', 
+            {
+                status: 'created',
+                label: 'Request Created',
                 date: delivery.created_at,
                 description: `Requested by ${delivery.user?.username || 'Unknown'}`
             }
@@ -169,12 +214,12 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
     };
 
     // Calculate real stats
-    const total = allDeliveries?.length || 0;
-    const delivered = allDeliveries?.filter(d => d.delivery_status === 'delivered').length || 0;
-    const inTransit = allDeliveries?.filter(d => d.delivery_status === 'in_transit').length || 0;
-    const pending = allDeliveries?.filter(d => d.delivery_status === 'pending').length || 0;
-    const approved = allDeliveries?.filter(d => d.delivery_status === 'approved').length || 0;
-    const rejected = allDeliveries?.filter(d => d.delivery_status === 'cancelled').length || 0;
+    const total = data?.stats?.total || 0;
+    const delivered = data?.stats?.delivered || 0;
+    const inTransit = data?.stats?.in_transit || 0;
+    const pending = data?.stats?.pending || 0;
+    const approved = data?.stats?.approved || 0;
+    const rejected = data?.stats?.cancelled || 0;
 
     const stats = [
         { label: 'Total Requests', value: total, icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', color: 'from-slate-500 to-slate-600' },
@@ -183,18 +228,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
         { label: 'In Transit', value: inTransit, icon: 'M13 10V3L4 14h7v7l9-11h-7z', color: 'from-blue-500 to-cyan-500' },
     ];
 
-    // Filter deliveries based on search and status filter
-    const filteredDeliveries = allDeliveries?.filter(delivery => {
-        const matchesSearch = !searchTerm || 
-            delivery.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.driver?.user?.firstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.driver?.user?.lastname?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesStatus = filterStatus === 'all' || delivery.delivery_status === filterStatus;
-        
-        return matchesSearch && matchesStatus;
-    }) || [];
+    const deliveriesList = data?.deliveries || [];
 
     return (
         <AdminLayout title="Delivery Management" authUser={authUser} activeMenu="deliveries" pendingDeliveries={pendingDeliveries?.length || 0}>
@@ -290,21 +324,19 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                     <div className="flex border-b border-slate-100">
                         <button
                             onClick={() => setActiveTab('pending')}
-                            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                                activeTab === 'pending'
+                            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'pending'
                                     ? 'border-[#4F46E5] text-[#4F46E5]'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
-                            }`}
+                                }`}
                         >
                             Pending {pending > 0 && <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">{pending}</span>}
                         </button>
                         <button
                             onClick={() => setActiveTab('all')}
-                            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                                activeTab === 'all'
+                            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'all'
                                     ? 'border-[#4F46E5] text-[#4F46E5]'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
-                            }`}
+                                }`}
                         >
                             All Deliveries
                         </button>
@@ -315,8 +347,8 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="flex items-center gap-3">
                                 <div className="relative">
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder="Search deliveries..."
@@ -329,7 +361,10 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                 {activeTab === 'all' && (
                                     <select
                                         value={filterStatus}
-                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        onChange={(e) => {
+                                            setFilterStatus(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
                                         className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500/20 focus:border-gray-500 transition-all"
                                     >
                                         <option value="all">All Status</option>
@@ -342,7 +377,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                 )}
                             </div>
                             <div className="text-sm text-gray-500">
-                                {activeTab === 'pending' ? pendingDeliveries?.length || 0 : filteredDeliveries.length} results
+                                {activeTab === 'pending' ? pendingDeliveries?.length || 0 : data?.meta?.total || 0} results
                             </div>
                         </div>
                     </div>
@@ -356,12 +391,11 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <span className="text-sm font-semibold text-amber-600">#{delivery.tracking_number}</span>
-                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                                                        delivery.priority === 'urgent' ? 'bg-red-100 text-red-700' :
-                                                        delivery.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                                                        'bg-gray-100 text-gray-700'
-                                                    }`}>
+                                                    <span className="text-sm font-semibold text-amber-600">#{delivery.waybill}</span>
+                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${delivery.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                                            delivery.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-gray-100 text-gray-700'
+                                                        }`}>
                                                         {delivery.priority?.toUpperCase()}
                                                     </span>
                                                 </div>
@@ -385,7 +419,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => openDetailModal(delivery)}
                                                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                                                 >
@@ -394,13 +428,13 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                     </svg>
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleApprove(delivery.delivery_id)}
                                                     className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                                                 >
                                                     Approve
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleReject(delivery.delivery_id)}
                                                     className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
                                                 >
@@ -426,11 +460,16 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
 
                     {/* All Deliveries Table */}
                     {activeTab === 'all' && (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto relative">
+                            {(isFetching && isPlaceholderData) && (
+                                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                </div>
+                            )}
                             <table className="min-w-full">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        {['Tracking', 'Client', 'Driver', 'Status', 'Weight', 'Created', 'Actions'].map((header) => (
+                                        {['Waybill', 'Client', 'Driver', 'Status', 'Weight', 'Created', 'Actions'].map((header) => (
                                             <th key={header} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                                 {header}
                                             </th>
@@ -438,11 +477,11 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {filteredDeliveries.length > 0 ? (
-                                        filteredDeliveries.map((delivery) => (
+                                    {deliveriesList.length > 0 ? (
+                                        deliveriesList.map((delivery) => (
                                             <tr key={delivery.delivery_id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 whitespace-nowrap">
-                                                    <span className="text-sm font-medium text-gray-900">#{delivery.tracking_number}</span>
+                                                    <span className="text-sm font-medium text-gray-900">#{delivery.waybill}</span>
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                     {delivery.client?.client_name}
@@ -462,7 +501,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                                     {new Date(delivery.created_at).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap">
-                                                    <button 
+                                                    <button
                                                         onClick={() => openDetailModal(delivery)}
                                                         className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                                                     >
@@ -480,6 +519,29 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                     )}
                                 </tbody>
                             </table>
+
+                            {/* Pagination UI */}
+                            {data?.meta && (
+                                <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+                                    <button
+                                        onClick={() => setCurrentPage(old => Math.max(old - 1, 1))}
+                                        disabled={currentPage === 1 || isPlaceholderData}
+                                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        &lt; Previous
+                                    </button>
+                                    <span className="text-sm text-gray-700">
+                                        Page {data.meta.current_page} of {data.meta.last_page || 1}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(old => (data.meta.current_page < data.meta.last_page ? old + 1 : old))}
+                                        disabled={currentPage === data.meta.last_page || !data.meta.last_page || isPlaceholderData}
+                                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next &gt;
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -497,7 +559,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                         </svg>
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-slate-900">#{selectedDelivery.tracking_number}</h2>
+                                        <h2 className="text-lg font-bold text-slate-900">#{selectedDelivery.waybill}</h2>
                                         <p className="text-xs text-slate-500">{formatDate(selectedDelivery.created_at)}</p>
                                     </div>
                                 </div>
@@ -505,7 +567,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedDelivery.delivery_status)}`}>
                                         {getStatusLabel(selectedDelivery.delivery_status)}
                                     </span>
-                                    <button 
+                                    <button
                                         onClick={closeDetailModal}
                                         className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                                     >
@@ -608,6 +670,92 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                     </div>
                                     <p className="font-medium text-slate-900 text-sm ml-8">{selectedDelivery.item_description}</p>
                                 </div>
+
+                                {/* Proof of Delivery Details (Only for status = delivered) */}
+                                {selectedDelivery.delivery_status === 'delivered' && (
+                                    <div className="bg-emerald-50/40 rounded-xl p-5 border border-emerald-200/60 space-y-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Proof of Delivery (POD)</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            {/* Left Column: Image Card */}
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-semibold text-slate-500 uppercase">Uploaded Proof Image</p>
+                                                {selectedDelivery.proof_image ? (
+                                                    <div className="relative group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-w-sm">
+                                                        <img
+                                                            src={selectedDelivery.proof_image}
+                                                            alt="Proof of Delivery"
+                                                            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <a
+                                                                href={selectedDelivery.proof_image}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="px-4 py-2 bg-white text-slate-800 text-xs font-semibold rounded-lg shadow-md hover:bg-slate-100 transition-colors"
+                                                            >
+                                                                Open Full Image
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-full h-32 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">
+                                                        No proof image available
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Right Column: Text Information */}
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Delivered At</p>
+                                                    <div className="flex items-center gap-1.5 text-slate-800 text-sm">
+                                                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span className="font-medium">{formatDate(selectedDelivery.delivered_at)}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Remarks / Delivery Notes</p>
+                                                    <div className="bg-white rounded-xl p-3 border border-slate-200 text-slate-800 text-sm italic shadow-sm">
+                                                        {selectedDelivery.remarks || 'No remarks provided by the driver.'}
+                                                    </div>
+                                                </div>
+
+                                                {selectedDelivery.actual_delivery_latitude && selectedDelivery.actual_delivery_longitude && (
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Actual GPS Coordinates</p>
+                                                        <div className="flex items-center justify-between bg-slate-100 p-2.5 rounded-lg border border-slate-200/60">
+                                                            <div className="flex items-center gap-1.5 text-slate-700 text-xs font-mono">
+                                                                <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                                </svg>
+                                                                <span>{selectedDelivery.actual_delivery_latitude}, {selectedDelivery.actual_delivery_longitude}</span>
+                                                            </div>
+                                                            <a
+                                                                href={`https://www.openstreetmap.org/?mlat=${selectedDelivery.actual_delivery_latitude}&mlon=${selectedDelivery.actual_delivery_longitude}&zoom=16`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs text-[#4F46E5] font-semibold hover:underline"
+                                                            >
+                                                                View on Map
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Modal Footer */}
@@ -621,13 +769,13 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                 <div className="flex gap-2">
                                     {selectedDelivery.delivery_status === 'pending' && (
                                         <>
-                                            <button 
+                                            <button
                                                 onClick={() => handleReject(selectedDelivery.delivery_id)}
                                                 className="px-4 py-2 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 Reject
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleApprove(selectedDelivery.delivery_id)}
                                                 className="px-4 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-500/20"
                                             >
@@ -635,10 +783,10 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                             </button>
                                         </>
                                     )}
-                                    {selectedDelivery.delivery_status !== 'pending' && selectedDelivery.delivery_status !== 'cancelled' && (
+                                    {selectedDelivery.delivery_status === 'approved' && (
                                         <>
                                             {sentToDriver.has(selectedDelivery.delivery_id) ? (
-                                                <button 
+                                                <button
                                                     disabled
                                                     className="px-4 py-2 bg-gray-400 text-white text-xs font-medium rounded-lg cursor-not-allowed opacity-75 flex items-center gap-1.5"
                                                 >
@@ -648,7 +796,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                                     Already Sent
                                                 </button>
                                             ) : (
-                                                <button 
+                                                <button
                                                     onClick={() => handleSendToDriver(selectedDelivery)}
                                                     className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
                                                 >
@@ -658,7 +806,7 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                                     Send to Driver
                                                 </button>
                                             )}
-                                            <button 
+                                            <button
                                                 onClick={closeDetailModal}
                                                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                                             >
@@ -666,8 +814,16 @@ export default function Deliveries({ authUser, pendingDeliveries, allDeliveries,
                                             </button>
                                         </>
                                     )}
+                                    {selectedDelivery.delivery_status !== 'pending' && selectedDelivery.delivery_status !== 'approved' && selectedDelivery.delivery_status !== 'cancelled' && (
+                                        <button
+                                            onClick={closeDetailModal}
+                                            className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20"
+                                        >
+                                            Close
+                                        </button>
+                                    )}
                                     {selectedDelivery.delivery_status === 'cancelled' && (
-                                        <button 
+                                        <button
                                             onClick={closeDetailModal}
                                             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors"
                                         >

@@ -10,7 +10,14 @@ class TruckController extends Controller
 {
     public function index()
     {
-        $trucks = Truck::orderBy('created_at', 'desc')->get();
+        $trucks = Truck::orderBy('created_at', 'desc')->paginate(10);
+        
+        $stats = [
+            'total' => Truck::count(),
+            'available' => Truck::where('truck_status', 'available')->count(),
+            'in_use' => Truck::where('truck_status', 'in_use')->count(),
+            'maintenance' => Truck::where('truck_status', 'maintenance')->count(),
+        ];
         
         // Get drivers with no truck assigned (available for assignment)
         $availableDrivers = Driver::whereNull('truck_id')
@@ -28,6 +35,7 @@ class TruckController extends Controller
         
         return inertia('Admin/Trucks', [
             'trucks' => $trucks,
+            'stats' => $stats,
             'availableDrivers' => $availableDrivers,
         ]);
     }
@@ -42,7 +50,13 @@ class TruckController extends Controller
             'truck_status' => 'nullable|in:available,in_use,maintenance,inactive',
         ]);
 
+        // Generate unique_id - random numeric string of at least 6 digits
+        do {
+            $uniqueId = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+        } while (Truck::where('unique_id', $uniqueId)->exists());
+
         Truck::create([
+            'unique_id' => $uniqueId,
             'plate_number' => $validated['plate_number'],
             'vehicle_type' => $validated['vehicle_type'],
             'capacity' => $validated['capacity'],
@@ -76,6 +90,10 @@ class TruckController extends Controller
 
     public function toggleStatus(Truck $truck)
     {
+        if ($truck->truck_status === 'in_use') {
+            return redirect()->back()->with('error', 'Cannot change status of a truck that is currently in use.');
+        }
+
         $newStatus = $truck->truck_status === 'available' ? 'inactive' : 'available';
         $truck->update(['truck_status' => $newStatus]);
         
