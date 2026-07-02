@@ -147,10 +147,10 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         // Payroll Routes
         Route::get('/payroll', [\App\Http\Controllers\PayrollController::class, 'index'])->name('payroll');
         Route::post('/payroll/generate', [\App\Http\Controllers\PayrollController::class, 'generate'])->name('payroll.generate');
+        Route::post('/payroll/generate-all', [\App\Http\Controllers\PayrollController::class, 'generateAll'])->name('payroll.generate_all');
+        Route::patch('/payroll/{id}/pay', [\App\Http\Controllers\PayrollController::class, 'markAsPaid'])->name('payroll.pay');
 
-        // Rescue Assistance Routes
-        Route::get('/rescue-dashboard', [\App\Http\Controllers\RescueWebController::class, 'index'])->name('rescue.dashboard');
-        Route::post('/rescue/{id}/assign', [\App\Http\Controllers\RescueWebController::class, 'assignMechanic'])->name('rescue.assign');
+
     });
 });
 

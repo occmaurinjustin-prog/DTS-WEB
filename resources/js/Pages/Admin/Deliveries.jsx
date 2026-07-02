@@ -15,6 +15,9 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
     const [sentToDriver, setSentToDriver] = useState(new Set()); // Track deliveries sent to driver
     const [currentPage, setCurrentPage] = useState(1);
     
+    // Modal state for confirmations
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, type: null, data: null });
+    
     const queryClient = useQueryClient();
 
     // Debounce search term
@@ -103,43 +106,52 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
         }
     };
 
-    const handleApprove = (deliveryId) => {
-        if (confirm('Are you sure you want to approve this delivery request?')) {
-            router.patch(`/admin/deliveries/${deliveryId}/approve`, {}, {
+    const handleApproveClick = (deliveryId) => {
+        setConfirmConfig({ isOpen: true, type: 'approve', data: deliveryId });
+    };
+
+    const handleRejectClick = (deliveryId) => {
+        setConfirmConfig({ isOpen: true, type: 'reject', data: deliveryId });
+    };
+
+    const handleSendToDriverClick = (delivery) => {
+        setConfirmConfig({ isOpen: true, type: 'send_to_driver', data: delivery });
+    };
+
+    const handleConfirmAction = () => {
+        const { type, data } = confirmConfig;
+        
+        if (type === 'approve') {
+            router.patch(`/admin/deliveries/${data}/approve`, {}, {
                 onSuccess: () => {
                     setShowDetailModal(false);
                     setSelectedDelivery(null);
+                    setConfirmConfig({ isOpen: false, type: null, data: null });
                 }
             });
-        }
-    };
-
-    const handleReject = (deliveryId) => {
-        if (confirm('Are you sure you want to reject this delivery request? This action cannot be undone.')) {
-            router.patch(`/admin/deliveries/${deliveryId}/reject`, {}, {
+        } else if (type === 'reject') {
+            router.patch(`/admin/deliveries/${data}/reject`, {}, {
                 onSuccess: () => {
                     setShowDetailModal(false);
                     setSelectedDelivery(null);
+                    setConfirmConfig({ isOpen: false, type: null, data: null });
                 }
             });
-        }
-    };
-
-    const handleSendToDriver = (delivery) => {
-        if (confirm(`Send delivery #${delivery.waybill} to driver ${delivery.driver?.user?.firstname} ${delivery.driver?.user?.lastname}?`)) {
-            router.post(`/admin/deliveries/${delivery.delivery_id}/send-to-driver`, {
-                driver_id: delivery.driver?.driver_id,
+        } else if (type === 'send_to_driver') {
+            router.post(`/admin/deliveries/${data.delivery_id}/send-to-driver`, {
+                driver_id: data.driver?.driver_id,
             }, {
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    // Add to sent to driver tracking
-                    setSentToDriver(prev => new Set([...prev, delivery.delivery_id]));
+                    setSentToDriver(prev => new Set([...prev, data.delivery_id]));
                     setShowDetailModal(false);
                     setTimeout(() => setSelectedDelivery(null), 300);
+                    setConfirmConfig({ isOpen: false, type: null, data: null });
                 },
                 onError: (errors) => {
                     alert('Failed to send delivery details: ' + JSON.stringify(errors));
+                    setConfirmConfig({ isOpen: false, type: null, data: null });
                 }
             });
         }
@@ -429,13 +441,13 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                                                     </svg>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleApprove(delivery.delivery_id)}
+                                                    onClick={() => handleApproveClick(delivery.delivery_id)}
                                                     className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                                                 >
                                                     Approve
                                                 </button>
                                                 <button
-                                                    onClick={() => handleReject(delivery.delivery_id)}
+                                                    onClick={() => handleRejectClick(delivery.delivery_id)}
                                                     className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
                                                 >
                                                     Reject

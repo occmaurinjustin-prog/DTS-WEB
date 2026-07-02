@@ -21,6 +21,16 @@ class PayrollService
             $hourlyRate = $minimumHourlyRate;
         }
 
+        // Check if a paid payroll already exists for this period
+        $existingPayroll = Payroll::where('user_id', $user->user_id)
+            ->where('period_start', $periodStart)
+            ->where('period_end', $periodEnd)
+            ->first();
+
+        if ($existingPayroll && $existingPayroll->status === 'paid') {
+            throw new Exception("Payroll for this period has already been paid and cannot be regenerated.");
+        }
+
         // Get all attendances for the period where the user was actually present
         $attendances = Attendance::where('user_id', $user->user_id)
             ->whereBetween('attendance_date', [$periodStart, $periodEnd])
