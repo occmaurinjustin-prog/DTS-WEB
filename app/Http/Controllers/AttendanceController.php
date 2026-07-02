@@ -9,29 +9,79 @@ class AttendanceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Attendance::with(['user', 'logs']);
-
-        if ($request->has('date') && $request->date) {
-            $query->whereDate('attendance_date', $request->date);
-        }
-
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
-        }
+        // Default to today if no date is provided or if date is empty string
+        $date = $request->input('date') ?: now()->format('Y-m-d');
+        
+        $query = \App\Models\User::where('role', 'mechanic')
+            ->with(['attendances' => function($q) use ($date) {
+                $q->whereDate('attendance_date', $date)->with('logs');
+            }]);
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->whereHas('user', function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+            $query->where(function($q) use ($search) {
+                $q->where('firstname', 'like', "%{$search}%")
+                  ->orWhere('lastname', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        $attendances = $query->orderBy('attendance_date', 'desc')->paginate(15)->withQueryString();
+        if ($request->has('status') && $request->status) {
+            $status = $request->status;
+            $query->where(function($q) use ($status, $date) {
+                if ($status === 'Absent') {
+                    $q->whereDoesntHave('attendances', function($sq) use ($date) {
+                        $sq->whereDate('attendance_date', $date);
+                    })->orWhereHas('attendances', function($sq) use ($date, $status) {
+                        $sq->whereDate('attendance_date', $date)->where('status', 'Absent');
+                    });
+                } else {
+                    $q->whereHas('attendances', function($sq) use ($date, $status) {
+                        $sq->whereDate('attendance_date', $date)->where('status', $status);
+                    });
+                }
+            });
+        }
+
+        // Order users by name for better readability
+        $users = $query->orderBy('firstname')->orderBy('lastname')->paginate(15)->withQueryString();
+
+        // Transform the collection to match what the frontend expects
+        $users->getCollection()->transform(function ($user) use ($date) {
+            $attendance = $user->attendances->first();
+            
+            if ($attendance) {
+                // Ensure user relation is attached for the frontend
+                $attendance->setRelation('user', $user);
+                return $attendance;
+            }
+
+            // Return mock absent record if no attendance exists
+            return (object) [
+                'id' => 'absent_' . $user->user_id,
+                'user_id' => $user->user_id,
+                'attendance_date' => $date,
+                'morning_in' => null,
+                'morning_out' => null,
+                'afternoon_in' => null,
+                'afternoon_out' => null,
+                'total_work_hours' => 0,
+                'late_minutes' => 0,
+                'undertime_minutes' => 0,
+                'status' => 'Absent',
+                'user' => $user,
+                'logs' => []
+            ];
+        });
 
         return inertia('OfficeStaff/Attendance', [
-            'attendances' => $attendances,
-            'filters' => $request->only(['date', 'status', 'search'])
+            'attendances' => $users,
+            'filters' => [
+                'date' => $date,
+                'status' => $request->status,
+                'search' => $request->search
+            ]
         ]);
     }
 }

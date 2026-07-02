@@ -68,6 +68,7 @@ class LoginController extends Controller
                     'role' => $user->role,
                     'contact_number' => $user->contact_number,
                     'is_active' => $user->is_active,
+                    'profile_image' => $user->profile_image,
                     'must_change_password' => !(bool)$user->exchangepassword,
                 ],
                 'token' => $token,
@@ -119,6 +120,7 @@ class LoginController extends Controller
                 'role' => $user->role,
                 'contact_number' => $user->contact_number,
                 'is_active' => $user->is_active,
+                'profile_image' => $user->profile_image,
             ],
         ]);
     }

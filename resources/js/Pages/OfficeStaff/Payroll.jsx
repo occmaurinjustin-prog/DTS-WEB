@@ -182,7 +182,6 @@ export default function Payroll({ payrolls, mechanics }) {
                                             <th className="px-6 py-4">Employee & Period</th>
                                             <th className="px-6 py-4">Hours & Rate</th>
                                             <th className="px-6 py-4 text-rose-500">Deductions</th>
-                                            <th className="px-6 py-4 text-emerald-500">Overtime</th>
                                             <th className="px-6 py-4">Net Salary</th>
                                             <th className="px-6 py-4 text-center">Status</th>
                                         </tr>
@@ -190,7 +189,7 @@ export default function Payroll({ payrolls, mechanics }) {
                                     <tbody className="divide-y divide-slate-100/50">
                                         {payrolls.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="px-6 py-12 text-center">
+                                                <td colSpan={5} className="px-6 py-12 text-center">
                                                     <div className="flex flex-col items-center justify-center text-slate-400">
                                                         <FileText className="w-12 h-12 mb-3 opacity-20" strokeWidth={1} />
                                                         <p className="text-base font-medium">No payroll records generated yet</p>
@@ -216,9 +215,6 @@ export default function Payroll({ payrolls, mechanics }) {
                                                     </td>
                                                     <td className="px-6 py-4 text-rose-600 font-bold">
                                                         {record.deductions > 0 ? `- ₱${record.deductions}` : '₱0.00'}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-emerald-600 font-bold">
-                                                        {record.overtime_pay > 0 ? `+ ₱${record.overtime_pay}` : '₱0.00'}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="text-lg font-black text-indigo-600">

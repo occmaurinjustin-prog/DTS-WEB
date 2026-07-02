@@ -303,4 +303,61 @@ class OperationalManagerDashboardController extends Controller
             'deliveries' => $deliveries,
         ]);
     }
+
+    public function tracking()
+    {
+        $user = Auth::user();
+        $userId = $user->user_id;
+        
+        $pendingDeliveries = \App\Models\Delivery::where('user_id', $userId)->where('delivery_status', 'pending')->count();
+
+        // Fetch drivers with 'in_transit' OR 'assigned' status and their current delivery
+        $drivers = Driver::with(['user', 'truck', 'deliveries' => function($query) {
+                $query->whereIn('delivery_status', ['assigned', 'in_transit'])
+                      ->with('client')
+                      ->latest();
+            }])
+            ->whereIn('availability_status', ['in_transit', 'busy'])
+            ->whereNotNull('current_latitude')
+            ->whereNotNull('current_longitude')
+            ->get()
+            ->map(function ($driver) {
+                // Get the current delivery (assigned or in_transit)
+                $currentDelivery = $driver->deliveries->first();
+
+                return [
+                    'id' => $driver->driver_id,
+                    'plate' => $driver->truck?->plate_number ?? 'NO-TRUCK',
+                    'driver' => $driver->user?->firstname . ' ' . $driver->user?->lastname ?? 'Unknown',
+                    'phone' => $driver->user?->contact_number ?? 'N/A',
+                    'speed' => $driver->current_speed ?? 0,
+                    'status' => $driver->current_speed > 0 ? 'moving' : ($driver->current_speed === 0 ? 'stopped' : 'offline'),
+                    'lastUpdate' => $driver->last_location_update ? \Carbon\Carbon::parse($driver->last_location_update)->diffForHumans() : 'Never',
+                    'lat' => (float) $driver->current_latitude,
+                    'lng' => (float) $driver->current_longitude,
+                    'isGpsEnabled' => (bool) $driver->is_gps_enabled,
+                    // Current delivery info with status
+                    'delivery' => $currentDelivery ? [
+                        'id' => $currentDelivery->delivery_id,
+                        'tracking' => $currentDelivery->waybill,
+                        'client' => $currentDelivery->client?->client_name ?? 'Unknown',
+                        'delivery_status' => $currentDelivery->delivery_status, // 'assigned' or 'in_transit'
+                        'navigation_phase' => $currentDelivery->navigation_phase ?? 'pickup', // 'pickup' or 'delivery'
+                        'pickup_lat' => (float) $currentDelivery->pickup_latitude,
+                        'pickup_lng' => (float) $currentDelivery->pickup_longitude,
+                        'pickup_address' => $currentDelivery->pickup_address,
+                        'dest_lat' => (float) $currentDelivery->delivery_latitude,
+                        'dest_lng' => (float) $currentDelivery->delivery_longitude,
+                        'dest_address' => $currentDelivery->delivery_address,
+                        'weight' => $currentDelivery->weight_tons,
+                    ] : null,
+                ];
+            });
+
+        return inertia('OperationalManager/Tracking', [
+            'authUser' => Auth::user(),
+            'pendingDeliveries' => $pendingDeliveries,
+            'drivers' => $drivers,
+        ]);
+    }
 }

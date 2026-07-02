@@ -30,7 +30,17 @@ Route::get('/', function () {
             return redirect()->route('operational_manager.dashboard');
         }
     }
-    return inertia('Landing');
+
+    $stats = [
+        'vehicles' => \App\Models\Truck::count(),
+        'users' => \App\Models\User::count(),
+        'deliveries' => \App\Models\Delivery::where('delivery_status', 'delivered')->count(),
+        'experience' => max(10, date('Y') - 2016),
+    ];
+
+    return inertia('Landing', [
+        'stats' => $stats
+    ]);
 });
 
 // Public Tracking Route
@@ -137,6 +147,10 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         // Payroll Routes
         Route::get('/payroll', [\App\Http\Controllers\PayrollController::class, 'index'])->name('payroll');
         Route::post('/payroll/generate', [\App\Http\Controllers\PayrollController::class, 'generate'])->name('payroll.generate');
+
+        // Rescue Assistance Routes
+        Route::get('/rescue-dashboard', [\App\Http\Controllers\RescueWebController::class, 'index'])->name('rescue.dashboard');
+        Route::post('/rescue/{id}/assign', [\App\Http\Controllers\RescueWebController::class, 'assignMechanic'])->name('rescue.assign');
     });
 });
 
@@ -166,6 +180,7 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         })->name('deliveries.create');
         Route::post('/deliveries', [OperationalManagerDashboardController::class, 'storeDelivery'])->name('deliveries.store');
         Route::get('/recent-deliveries', [OperationalManagerDashboardController::class, 'recentDeliveries'])->name('recent_deliveries');
+        Route::get('/tracking', [OperationalManagerDashboardController::class, 'tracking'])->name('tracking');
         Route::get('/profile', [OperationalManagerDashboardController::class, 'profile'])->name('profile');
         
         // Client management routes

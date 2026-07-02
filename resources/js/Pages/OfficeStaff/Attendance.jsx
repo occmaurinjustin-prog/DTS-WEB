@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import OfficeStaffLayout from '@/Layouts/OfficeStaffLayout';
 import { Search, Download, Calendar, MapPin, Clock, FileSpreadsheet, XCircle, User } from 'lucide-react';
@@ -8,16 +8,22 @@ export default function AttendanceIndex({ attendances, filters }) {
     const [date, setDate] = useState(filters.date || '');
     const [status, setStatus] = useState(filters.status || '');
 
+    useEffect(() => {
+        setSearch(filters.search || '');
+        setDate(filters.date || '');
+        setStatus(filters.status || '');
+    }, [filters]);
+
     const handleSearch = (e) => {
         e.preventDefault();
-        router.get(route('office_staff.attendance'), { search, date, status }, { preserveState: true });
+        router.get('/office-staff/attendance', { search, date, status }, { preserveState: true });
     };
 
     const clearFilters = () => {
         setSearch('');
         setDate('');
         setStatus('');
-        router.get(route('office_staff.attendance'));
+        router.get('/office-staff/attendance');
     };
 
     const formatTime = (timeString) => {
@@ -207,11 +213,6 @@ export default function AttendanceIndex({ attendances, filters }) {
                                                         {(record.late_minutes > 0 || record.undertime_minutes > 0) && (
                                                             <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wide">
                                                                 {record.late_minutes}m Late • {record.undertime_minutes}m UT
-                                                            </span>
-                                                        )}
-                                                        {record.overtime_minutes > 0 && (
-                                                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">
-                                                                {record.overtime_minutes}m OT
                                                             </span>
                                                         )}
                                                     </div>

@@ -325,12 +325,20 @@ export default function Users({ userStats, authUser, trucks }) {
                                         <tr key={user.user_id} className="hover:bg-slate-50/80 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${user.role === 'admin' ? 'bg-slate-900 text-white font-bold' :
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm overflow-hidden ${user.role === 'admin' ? 'bg-slate-900 text-white font-bold' :
                                                             user.role === 'driver' ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100' :
                                                                 user.role === 'mechanic' ? 'bg-amber-50 text-amber-700 font-bold border border-amber-100' :
                                                                     'bg-slate-100 text-slate-700 font-bold border border-slate-200'
                                                         }`}>
-                                                        <span className="text-xs">{user.firstname?.charAt(0) || user.username.charAt(0)}</span>
+                                                        {user.profile_image ? (
+                                                            <img 
+                                                                src={user.profile_image.startsWith('http') ? user.profile_image : `/storage/${user.profile_image}`} 
+                                                                alt={`${user.firstname} profile`}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs">{user.firstname?.charAt(0) || user.username.charAt(0)}</span>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <div className="text-sm font-semibold text-slate-900">{user.firstname} {user.lastname}</div>

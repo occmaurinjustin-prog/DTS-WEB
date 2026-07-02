@@ -44,16 +44,12 @@ class AttendanceService
                 $lateMinutes = $timeIn->diffInMinutes($expectedTimeIn);
             }
 
-            $overtimeMinutes = 0;
-            if ($now->greaterThan($expectedTimeOut)) {
-                $overtimeMinutes = $now->diffInMinutes($expectedTimeOut);
-            }
+
 
             $attendance->update([
                 'time_out' => $now,
                 'working_hours' => $workingHours,
                 'late_minutes' => $lateMinutes,
-                'overtime_minutes' => $overtimeMinutes,
                 'attendance_status' => 'completed',
             ]);
 

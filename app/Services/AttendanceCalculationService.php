@@ -50,15 +50,17 @@ class AttendanceCalculationService
     {
         $lateMinutes = 0;
         $undertimeMinutes = 0;
-        $overtimeMinutes = 0;
         $totalMinutesWorked = 0;
         
         $date = $attendance->attendance_date->format('Y-m-d');
 
         // Target times
         $morningTargetIn = Carbon::parse("$date 07:00:00");
+        $morningGraceIn = Carbon::parse("$date 07:30:00");
         $morningTargetOut = Carbon::parse("$date 12:00:00");
+        $morningGraceOut = Carbon::parse("$date 11:50:00");
         $afternoonTargetIn = Carbon::parse("$date 13:00:00");
+        $afternoonGraceIn = Carbon::parse("$date 13:30:00");
         $afternoonTargetOut = Carbon::parse("$date 16:00:00");
 
         $morningIn = $attendance->morning_in ? Carbon::parse("$date {$attendance->morning_in}") : null;
@@ -69,20 +71,20 @@ class AttendanceCalculationService
         // Morning Shift Computation
         if ($morningIn) {
             // Late
-            if ($morningIn->greaterThan($morningTargetIn)) {
+            if ($morningIn->greaterThan($morningGraceIn)) {
                 $lateMinutes += abs($morningIn->diffInMinutes($morningTargetIn));
             }
         }
         
         if ($morningIn && $morningOut) {
             // Undertime
-            if ($morningOut->lessThan($morningTargetOut)) {
+            if ($morningOut->lessThan($morningGraceOut)) {
                 $undertimeMinutes += abs($morningOut->diffInMinutes($morningTargetOut));
             }
             
             // Actual worked minutes in morning
-            $actualIn = $morningIn->greaterThan($morningTargetIn) ? $morningIn : $morningTargetIn;
-            $actualOut = $morningOut->lessThan($morningTargetOut) ? $morningOut : $morningTargetOut;
+            $actualIn = $morningIn->greaterThan($morningGraceIn) ? $morningIn : $morningTargetIn;
+            $actualOut = $morningOut->lessThan($morningGraceOut) ? $morningOut : $morningTargetOut;
             if ($actualOut->greaterThan($actualIn)) {
                 $totalMinutesWorked += abs($actualIn->diffInMinutes($actualOut));
             }
@@ -91,7 +93,7 @@ class AttendanceCalculationService
         // Afternoon Shift Computation
         if ($afternoonIn) {
             // Late
-            if ($afternoonIn->greaterThan($afternoonTargetIn)) {
+            if ($afternoonIn->greaterThan($afternoonGraceIn)) {
                 $lateMinutes += abs($afternoonIn->diffInMinutes($afternoonTargetIn));
             }
         }
@@ -102,13 +104,8 @@ class AttendanceCalculationService
                 $undertimeMinutes += abs($afternoonOut->diffInMinutes($afternoonTargetOut));
             }
             
-            // Overtime (if they time out after 4:00 PM)
-            if ($afternoonOut->greaterThan($afternoonTargetOut)) {
-                $overtimeMinutes += abs($afternoonOut->diffInMinutes($afternoonTargetOut));
-            }
-            
             // Actual worked minutes in afternoon
-            $actualIn = $afternoonIn->greaterThan($afternoonTargetIn) ? $afternoonIn : $afternoonTargetIn;
+            $actualIn = $afternoonIn->greaterThan($afternoonGraceIn) ? $afternoonIn : $afternoonTargetIn;
             $actualOut = $afternoonOut->lessThan($afternoonTargetOut) ? $afternoonOut : $afternoonTargetOut;
             if ($actualOut->greaterThan($actualIn)) {
                 $totalMinutesWorked += abs($actualIn->diffInMinutes($actualOut));
@@ -117,7 +114,6 @@ class AttendanceCalculationService
 
         $attendance->late_minutes = $lateMinutes;
         $attendance->undertime_minutes = $undertimeMinutes;
-        $attendance->overtime_minutes = $overtimeMinutes;
         $attendance->total_work_hours = $totalMinutesWorked / 60;
         
         // Determine status

@@ -34,15 +34,13 @@ class PayrollService
         // Calculations
         $lateMinutes = $attendances->sum('late_minutes');
         $undertimeMinutes = $attendances->sum('undertime_minutes');
-        $overtimeMinutes = $attendances->sum('overtime_minutes');
 
         // Deductions (Deduct per minute of late/undertime)
         $deductionPerMinute = $hourlyRate / 60;
         $deductions = ($lateMinutes + $undertimeMinutes) * $deductionPerMinute;
 
-        // Overtime Pay (1.5x Hourly Rate)
-        $overtimeHours = $overtimeMinutes / 60;
-        $overtimePay = $overtimeHours * ($hourlyRate * 1.5);
+        // Overtime Pay (Removed as requested)
+        $overtimePay = 0;
 
         // The Total Hours stored should strictly match the actual worked hours from Attendance.
         $totalHours = $attendances->sum('total_work_hours');

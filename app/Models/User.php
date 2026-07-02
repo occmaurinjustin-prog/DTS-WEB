@@ -39,6 +39,9 @@ class User extends Authenticatable
         'face_status',
         'email',
         'exchangepassword',
+        'current_latitude',
+        'current_longitude',
+        'last_location_update',
     ];
 
     /**
@@ -61,6 +64,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'current_latitude' => 'float',
+            'current_longitude' => 'float',
+            'last_location_update' => 'datetime',
         ];
     }
 

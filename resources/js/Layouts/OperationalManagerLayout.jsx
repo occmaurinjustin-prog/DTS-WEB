@@ -106,7 +106,7 @@ function Sidebar({ activeMenu, authUser }) {
         { id: 'clients', name: 'Clients', icon: 'clients', href: '/operational-manager/clients' },
         { id: 'deliveries', name: 'Deliveries', icon: 'deliveries', href: '/operational-manager/deliveries' },
         { id: 'trucks', name: 'Trucks', icon: 'trucks', href: '/operational-manager/trucks' },
-        { id: 'tracking', name: 'Tracking', icon: 'tracking', href: '#', live: true },
+        { id: 'tracking', name: 'Tracking', icon: 'tracking', href: '/operational-manager/tracking', live: true },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/operational-manager/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: 3 },
         { id: 'settings', name: 'Settings', icon: 'settings', href: '/operational-manager/settings' },

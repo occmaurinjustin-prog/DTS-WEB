@@ -14,7 +14,11 @@ class TrackingController extends Controller
             ->first();
 
         if (!$delivery) {
-            return redirect('/')->with('error', 'Invalid Waybill Number or delivery not found.');
+            return back(302, [], '/')->with('error', 'Invalid Tracking Number. Please check and try again.');
+        }
+
+        if ($delivery->delivery_status === 'delivered') {
+            return back(302, [], '/')->with('error', 'This waybill has already been delivered and is expired. Tracking is no longer active.');
         }
 
         $currentLocation = null;

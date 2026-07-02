@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
-import AdminLayout from '../../Layouts/AdminLayout';
+import OperationalManagerLayout from '../../Layouts/OperationalManagerLayout';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 // Icon components
@@ -90,7 +90,7 @@ if (mapboxgl) {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 }
 
-export default function Routes({ authUser, pendingDeliveries, drivers }) {
+export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     const [selectedDriver, setSelectedDriver] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [mapLoaded, setMapLoaded] = useState(false);
@@ -891,7 +891,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     };
 
     return (
-        <AdminLayout title="Live Routes" authUser={authUser} activeMenu="routes">
+        <OperationalManagerLayout title="Live Tracking" authUser={authUser} activeMenu="tracking">
             <div className="w-full h-screen flex overflow-hidden bg-gray-50">
                 {/* LEFT PANEL - Driver List */}
                 <div className="w-[380px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
@@ -1169,6 +1169,6 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                         )}
                 </div>
             </div>
-        </AdminLayout>
+        </OperationalManagerLayout>
     );
 }

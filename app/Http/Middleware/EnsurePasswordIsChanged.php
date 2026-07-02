@@ -16,12 +16,13 @@ class EnsurePasswordIsChanged
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check() && !Auth::user()->exchangepassword) {
-            // If they are not already trying to change their password
-            if (!$request->is('force-change-password') && !$request->is('api/*')) {
-                return redirect()->route('password.force-change');
-            }
-        }
+        // Disabled forced password change so users can decide when to change it
+        // if (Auth::check() && !Auth::user()->exchangepassword) {
+        //     // If they are not already trying to change their password
+        //     if (!$request->is('force-change-password') && !$request->is('api/*')) {
+        //         return redirect()->route('password.force-change');
+        //     }
+        // }
 
         return $next($request);
     }

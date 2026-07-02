@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { 
     Truck, Map, ShieldCheck, Clock, Users, Wrench, 
@@ -7,10 +7,11 @@ import {
     ChevronRight, LogIn, Menu, X, LocateFixed, Smartphone, Server, Search
 } from 'lucide-react';
 
-export default function Landing() {
+export default function Landing({ stats }) {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [waybill, setWaybill] = useState('');
+    const { flash } = usePage().props;
 
     const handleTrack = (e) => {
         e.preventDefault();
@@ -139,6 +140,15 @@ export default function Landing() {
                                 Manage your fleet, monitor deliveries in real time, assign drivers, track maintenance, and improve operational efficiency through one intelligent platform.
                             </motion.p>
                             
+                            {flash?.error && (
+                                <motion.div variants={fadeUp} className="bg-red-500/20 backdrop-blur-md border border-red-500/50 text-red-200 px-4 py-3 rounded-xl mb-6 text-sm font-bold flex items-start gap-3 max-w-lg shadow-lg">
+                                    <div className="bg-red-500/30 p-1.5 rounded-lg shrink-0 mt-0.5">
+                                        <X className="w-4 h-4 text-red-200" />
+                                    </div>
+                                    <p className="pt-1">{flash.error}</p>
+                                </motion.div>
+                            )}
+
                             <motion.form onSubmit={handleTrack} variants={fadeUp} className="bg-white/10 p-2 rounded-2xl backdrop-blur-md border border-white/20 flex flex-col sm:flex-row gap-2 max-w-lg mb-8">
                                 <div className="relative flex-1">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -212,28 +222,28 @@ export default function Landing() {
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 mb-4">
                                 <Truck className="w-6 h-6" />
                             </div>
-                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">500+</h3>
+                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.vehicles?.toLocaleString() || 0}</h3>
                             <p className="text-sm font-medium text-slate-500">Fleet Vehicles</p>
                         </div>
                         <div className="text-center px-4">
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 mb-4">
                                 <Users className="w-6 h-6" />
                             </div>
-                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">180+</h3>
+                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.users?.toLocaleString() || 0}</h3>
                             <p className="text-sm font-medium text-slate-500">Drivers & Staff</p>
                         </div>
                         <div className="text-center px-4">
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-green-50 text-green-500 mb-4">
                                 <CheckCircle2 className="w-6 h-6" />
                             </div>
-                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">25k+</h3>
+                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.deliveries?.toLocaleString() || 0}</h3>
                             <p className="text-sm font-medium text-slate-500">Deliveries Completed</p>
                         </div>
                         <div className="text-center px-4">
                             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-purple-50 text-purple-500 mb-4">
                                 <Calendar className="w-6 h-6" />
                             </div>
-                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">10+</h3>
+                            <h3 className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.experience || 10}+</h3>
                             <p className="text-sm font-medium text-slate-500">Years Experience</p>
                         </div>
                     </div>

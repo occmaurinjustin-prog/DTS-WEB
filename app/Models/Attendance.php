@@ -22,7 +22,6 @@ class Attendance extends Model
         'afternoon_out',
         'late_minutes',
         'undertime_minutes',
-        'overtime_minutes',
         'total_work_hours',
         'status',
     ];
