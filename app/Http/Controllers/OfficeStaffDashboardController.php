@@ -19,6 +19,8 @@ class OfficeStaffDashboardController extends Controller
             'pending_maintenance' => \App\Models\MaintenanceReport::where('status', 'pending')->count(),
             'total_trucks' => \App\Models\Truck::count(),
             'available_trucks' => \App\Models\Truck::where('truck_status', 'available')->count(),
+            'active_rescues' => \App\Models\RescueRequest::whereIn('status', ['pending', 'assigned', 'en_route', 'arrived'])->count(),
+            'total_rescues' => \App\Models\RescueRequest::count(),
         ];
 
         // 1. Weekly Attendance Trends (Last 7 days)

@@ -149,7 +149,11 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         Route::post('/payroll/generate', [\App\Http\Controllers\PayrollController::class, 'generate'])->name('payroll.generate');
         Route::post('/payroll/generate-all', [\App\Http\Controllers\PayrollController::class, 'generateAll'])->name('payroll.generate_all');
         Route::patch('/payroll/{id}/pay', [\App\Http\Controllers\PayrollController::class, 'markAsPaid'])->name('payroll.pay');
-
+        // Rescue Assistance Routes
+        Route::get('/rescue-dispatch', [\App\Http\Controllers\RescueDispatchController::class, 'index'])->name('rescue.dispatch');
+        Route::get('/rescue-history', [\App\Http\Controllers\RescueDispatchController::class, 'history'])->name('rescue.history');
+        Route::post('/rescue-dispatch/{id}/assign', [\App\Http\Controllers\RescueDispatchController::class, 'assign'])->name('rescue.assign');
+        Route::post('/rescue-dispatch/{id}/add-parts', [\App\Http\Controllers\RescueDispatchController::class, 'addParts'])->name('rescue.add-parts');
 
     });
 });

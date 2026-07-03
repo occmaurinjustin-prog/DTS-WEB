@@ -69,8 +69,13 @@ Route::middleware(['cors'])->group(function () {
         // Driver maintenance reports history
         Route::get('/driver/maintenance-reports', [DriverController::class, 'getMaintenanceReports']);
 
-
-
+        // Rescue Operations
+        Route::post('/rescue/submit', [\App\Http\Controllers\Api\RescueApiController::class, 'submit']);
+        Route::get('/rescue/driver/active', [\App\Http\Controllers\Api\RescueApiController::class, 'driverActiveRescue']);
+        Route::get('/rescue/driver/history', [\App\Http\Controllers\Api\RescueApiController::class, 'driverHistory']);
+        Route::get('/rescue/mechanic/assignments', [\App\Http\Controllers\Api\RescueApiController::class, 'mechanicAssignments']);
+        Route::post('/rescue/{id}/status', [\App\Http\Controllers\Api\RescueApiController::class, 'updateStatus']);
+        Route::post('/rescue/{id}/mechanic-location', [\App\Http\Controllers\Api\RescueApiController::class, 'updateMechanicLocation']);
         // All drivers list (admin/operation manager only)
         Route::get('/drivers', [DriverController::class, 'index']);
 

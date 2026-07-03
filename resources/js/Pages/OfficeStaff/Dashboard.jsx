@@ -1,7 +1,7 @@
 import React from 'react';
 import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Users, Truck, Wrench, Activity } from 'lucide-react';
+import { Users, Truck, Wrench, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function Dashboard({ authUser, userInfo, officeStaff, stats }) {
     return (
@@ -44,9 +44,11 @@ function DashboardContent({ authUser, stats }) {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="Total Mechanics" value={stats?.total_mechanics || 0} icon={Users} colorClass="bg-indigo-500" trend="Active" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <StatCard title="Active Emergencies" value={stats?.active_rescues || 0} icon={AlertTriangle} colorClass="bg-red-500" trend={stats?.active_rescues > 0 ? "Urgent" : null} />
+                <StatCard title="Total Rescues Handled" value={stats?.total_rescues || 0} icon={ShieldCheck} colorClass="bg-teal-500" />
                 <StatCard title="Pending Maintenance" value={stats?.pending_maintenance || 0} icon={Wrench} colorClass="bg-rose-500" trend="Action Needed" />
+                <StatCard title="Total Mechanics" value={stats?.total_mechanics || 0} icon={Users} colorClass="bg-indigo-500" trend="Active" />
                 <StatCard title="Total Fleet Size" value={stats?.total_trucks || 0} icon={Truck} colorClass="bg-blue-500" />
                 <StatCard title="Available Trucks" value={stats?.available_trucks || 0} icon={Activity} colorClass="bg-emerald-500" trend="Ready" />
             </div>

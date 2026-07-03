@@ -28,7 +28,8 @@ const icons = {
     notifications: Bell,
     settings: Settings,
     employees: Users,
-    truck: Truck
+    truck: Truck,
+    rescue: LifeBuoy
 };
 
 // Icon component
@@ -111,6 +112,7 @@ function Sidebar({ activeMenu, authUser }) {
         { id: 'attendance', name: 'Attendance', icon: 'attendance', href: '/office-staff/attendance' },
         { id: 'payroll', name: 'Payroll', icon: 'payroll', href: '/office-staff/payroll' },
         { id: 'maintenance', name: 'Maintenance', icon: 'maintenance', href: '/office-staff/maintenance' },
+        { id: 'rescue', name: 'Rescue Dispatch', icon: 'rescue', href: '/office-staff/rescue-dispatch' },
         { id: 'inventory', name: 'Inventory', icon: 'inventory', href: '/office-staff/inventory' },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/office-staff/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: 2 },

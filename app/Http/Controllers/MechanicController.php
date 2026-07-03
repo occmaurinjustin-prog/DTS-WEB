@@ -398,6 +398,8 @@ class MechanicController extends Controller
             $pendingReviews = MaintenanceReport::where('mechanic_id', $user->user_id)
                 ->where('status', 'pending')->count();
             $assignedTasks = \App\Models\Maintenance::where('assign_mechanics', $user->user_id)->count();
+            $completedRescues = \App\Models\RescueRequest::where('mechanic_id', $user->user_id)
+                ->where('status', 'resolved')->count();
 
             return response()->json([
                 'success' => true,
@@ -408,6 +410,7 @@ class MechanicController extends Controller
                     'critical_condition' => $criticalCondition,
                     'pending_reviews' => $pendingReviews,
                     'assigned_tasks' => $assignedTasks,
+                    'completed_rescues' => $completedRescues,
                 ],
             ]);
 

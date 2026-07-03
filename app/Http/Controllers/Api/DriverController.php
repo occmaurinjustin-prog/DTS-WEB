@@ -142,10 +142,19 @@ class DriverController extends Controller
                 ], 404);
             }
 
+            $completedRescues = \App\Models\RescueRequest::where('driver_id', $driver->driver_id)
+                ->where('status', 'resolved')->count();
+            $activeRescues = \App\Models\RescueRequest::where('driver_id', $driver->driver_id)
+                ->whereIn('status', ['pending', 'assigned', 'en_route', 'arrived'])->count();
+
             return response()->json([
                 'success' => true,
                 'status' => $driver->availability_status,
                 'driver_id' => $driver->driver_id,
+                'rescue_stats' => [
+                    'completed' => $completedRescues,
+                    'active' => $activeRescues,
+                ],
             ]);
 
         } catch (\Exception $e) {
