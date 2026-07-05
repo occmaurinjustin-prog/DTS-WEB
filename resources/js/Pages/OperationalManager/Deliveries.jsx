@@ -53,20 +53,36 @@ export default function Deliveries({ authUser, deliveries, flash }) {
         }
     }, [data, currentPage, debouncedSearch, filterStatus, queryClient]);
 
-    // Auto-refresh every 5 seconds for real-time updates
+    // Real-time updates via WebSockets
     useEffect(() => {
-        const interval = setInterval(() => {
-            router.reload({
-                only: ['flash'],
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => setLastUpdated(new Date())
-            });
-            queryClient.invalidateQueries({ queryKey: ['om-deliveries'] });
-        }, 5000);
+        if (!window.Echo) return;
 
-        return () => clearInterval(interval);
-    }, []);
+        const channel = window.Echo.channel('deliveries')
+            .listen('DeliveryStatusUpdated', (e) => {
+                console.log('Delivery status updated via WebSocket', e);
+                router.reload({
+                    only: ['flash'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => setLastUpdated(new Date())
+                });
+                queryClient.invalidateQueries({ queryKey: ['om-deliveries'] });
+            })
+            .listen('DeliveryCreated', (e) => {
+                console.log('New delivery created via WebSocket', e);
+                router.reload({
+                    only: ['flash'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => setLastUpdated(new Date())
+                });
+                queryClient.invalidateQueries({ queryKey: ['om-deliveries'] });
+            });
+
+        return () => {
+            if (window.Echo) window.Echo.leaveChannel('deliveries');
+        };
+    }, [queryClient]);
 
     const getStatusColor = (status) => {
         switch (status) {

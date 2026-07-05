@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
-import AdminLayout from '../../Layouts/AdminLayout';
+import { Head, router } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
@@ -58,20 +58,36 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
         }
     }, [data, currentPage, debouncedSearch, filterStatus, queryClient]);
 
-    // Auto-refresh every 5 seconds for real-time updates
+    // Real-time updates via WebSockets
     useEffect(() => {
-        const interval = setInterval(() => {
-            router.reload({
-                only: ['pendingDeliveries'],
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => setLastUpdated(new Date())
-            });
-            queryClient.invalidateQueries({ queryKey: ['deliveries'] });
-        }, 5000);
+        if (!window.Echo) return;
 
-        return () => clearInterval(interval);
-    }, []);
+        const channel = window.Echo.channel('deliveries')
+            .listen('DeliveryStatusUpdated', (e) => {
+                console.log('Delivery status updated via WebSocket', e);
+                router.reload({
+                    only: ['pendingDeliveries'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => setLastUpdated(new Date())
+                });
+                queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+            })
+            .listen('DeliveryCreated', (e) => {
+                console.log('New delivery created via WebSocket', e);
+                router.reload({
+                    only: ['pendingDeliveries'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => setLastUpdated(new Date())
+                });
+                queryClient.invalidateQueries({ queryKey: ['deliveries'] });
+            });
+
+        return () => {
+            if (window.Echo) window.Echo.leaveChannel('deliveries');
+        };
+    }, [queryClient]);
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -127,6 +143,7 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                     setShowDetailModal(false);
                     setSelectedDelivery(null);
                     setConfirmConfig({ isOpen: false, type: null, data: null });
+                    queryClient.invalidateQueries({ queryKey: ['deliveries'] });
                 }
             });
         } else if (type === 'reject') {
@@ -135,6 +152,7 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                     setShowDetailModal(false);
                     setSelectedDelivery(null);
                     setConfirmConfig({ isOpen: false, type: null, data: null });
+                    queryClient.invalidateQueries({ queryKey: ['deliveries'] });
                 }
             });
         } else if (type === 'send_to_driver') {
@@ -148,6 +166,7 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                     setShowDetailModal(false);
                     setTimeout(() => setSelectedDelivery(null), 300);
                     setConfirmConfig({ isOpen: false, type: null, data: null });
+                    queryClient.invalidateQueries({ queryKey: ['deliveries'] });
                 },
                 onError: (errors) => {
                     alert('Failed to send delivery details: ' + JSON.stringify(errors));
@@ -782,13 +801,13 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                                     {selectedDelivery.delivery_status === 'pending' && (
                                         <>
                                             <button
-                                                onClick={() => handleReject(selectedDelivery.delivery_id)}
+                                                onClick={() => handleRejectClick(selectedDelivery.delivery_id)}
                                                 className="px-4 py-2 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 Reject
                                             </button>
                                             <button
-                                                onClick={() => handleApprove(selectedDelivery.delivery_id)}
+                                                onClick={() => handleApproveClick(selectedDelivery.delivery_id)}
                                                 className="px-4 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-500/20"
                                             >
                                                 Approve
@@ -809,7 +828,7 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                                                 </button>
                                             ) : (
                                                 <button
-                                                    onClick={() => handleSendToDriver(selectedDelivery)}
+                                                    onClick={() => handleSendToDriverClick(selectedDelivery)}
                                                     className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
                                                 >
                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -826,14 +845,6 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                                             </button>
                                         </>
                                     )}
-                                    {selectedDelivery.delivery_status !== 'pending' && selectedDelivery.delivery_status !== 'approved' && selectedDelivery.delivery_status !== 'cancelled' && (
-                                        <button
-                                            onClick={closeDetailModal}
-                                            className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20"
-                                        >
-                                            Close
-                                        </button>
-                                    )}
                                     {selectedDelivery.delivery_status === 'cancelled' && (
                                         <button
                                             onClick={closeDetailModal}
@@ -842,7 +853,51 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                                             Close
                                         </button>
                                     )}
+                                    {selectedDelivery.delivery_status !== 'pending' && selectedDelivery.delivery_status !== 'approved' && selectedDelivery.delivery_status !== 'cancelled' && (
+                                        <button
+                                            onClick={closeDetailModal}
+                                            className="px-4 py-2 bg-[#4F46E5] text-white text-xs font-medium rounded-lg hover:bg-[#4338CA] transition-colors shadow-md shadow-indigo-500/20"
+                                        >
+                                            Close
+                                        </button>
+                                    )}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Confirmation Modal */}
+                {confirmConfig.isOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200">
+                            <h3 className="text-lg font-bold text-slate-900 mb-2">
+                                {confirmConfig.type === 'approve' ? 'Approve Delivery' : 
+                                 confirmConfig.type === 'reject' ? 'Reject Delivery' : 
+                                 'Send to Driver'}
+                            </h3>
+                            <p className="text-sm text-slate-600 mb-6">
+                                {confirmConfig.type === 'approve' ? 'Are you sure you want to approve this delivery request?' : 
+                                 confirmConfig.type === 'reject' ? 'Are you sure you want to reject this delivery request?' : 
+                                 'Are you sure you want to send this delivery to the assigned driver?'}
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setConfirmConfig({ isOpen: false, type: null, data: null })}
+                                    className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmAction}
+                                    className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors shadow-md ${
+                                        confirmConfig.type === 'reject' 
+                                            ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20' 
+                                            : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
+                                    }`}
+                                >
+                                    Confirm
+                                </button>
                             </div>
                         </div>
                     </div>

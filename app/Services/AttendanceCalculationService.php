@@ -22,21 +22,17 @@ class AttendanceCalculationService
         }
 
         // Morning out: Only available after 11:50 AM, until 1:00 PM (13:00)
-        if (!empty($attendance->morning_in) && empty($attendance->morning_out) && $timeStr >= '11:50' && $timeStr < '13:00') {
+        if (empty($attendance->morning_out) && $timeStr >= '11:50' && $timeStr < '13:00') {
             return 'morning_out';
         }
 
         // Afternoon in: Available after 12:00 PM, until 3:50 PM (15:50)
         if (empty($attendance->afternoon_in) && $timeStr >= '12:00' && $timeStr < '15:50') {
-            // If they haven't punched out for the morning yet, prioritize that if within valid range
-            if (!empty($attendance->morning_in) && empty($attendance->morning_out) && $timeStr < '13:00') {
-                return 'morning_out';
-            }
             return 'afternoon_in';
         }
 
         // Afternoon out: Only available after 3:50 PM (15:50)
-        if (!empty($attendance->afternoon_in) && empty($attendance->afternoon_out) && $timeStr >= '15:50') {
+        if (empty($attendance->afternoon_out) && $timeStr >= '15:50') {
             return 'afternoon_out';
         }
 
@@ -56,12 +52,13 @@ class AttendanceCalculationService
 
         // Target times
         $morningTargetIn = Carbon::parse("$date 07:00:00");
-        $morningGraceIn = Carbon::parse("$date 07:30:00");
+        $morningGraceIn = Carbon::parse("$date 07:00:59");
         $morningTargetOut = Carbon::parse("$date 12:00:00");
         $morningGraceOut = Carbon::parse("$date 11:50:00");
         $afternoonTargetIn = Carbon::parse("$date 13:00:00");
-        $afternoonGraceIn = Carbon::parse("$date 13:30:00");
+        $afternoonGraceIn = Carbon::parse("$date 13:00:59");
         $afternoonTargetOut = Carbon::parse("$date 16:00:00");
+        $afternoonGraceOut = Carbon::parse("$date 15:50:00");
 
         $morningIn = $attendance->morning_in ? Carbon::parse("$date {$attendance->morning_in}") : null;
         $morningOut = $attendance->morning_out ? Carbon::parse("$date {$attendance->morning_out}") : null;
@@ -100,13 +97,13 @@ class AttendanceCalculationService
 
         if ($afternoonIn && $afternoonOut) {
             // Undertime
-            if ($afternoonOut->lessThan($afternoonTargetOut)) {
+            if ($afternoonOut->lessThan($afternoonGraceOut)) {
                 $undertimeMinutes += abs($afternoonOut->diffInMinutes($afternoonTargetOut));
             }
             
             // Actual worked minutes in afternoon
             $actualIn = $afternoonIn->greaterThan($afternoonGraceIn) ? $afternoonIn : $afternoonTargetIn;
-            $actualOut = $afternoonOut->lessThan($afternoonTargetOut) ? $afternoonOut : $afternoonTargetOut;
+            $actualOut = $afternoonOut->lessThan($afternoonGraceOut) ? $afternoonOut : $afternoonTargetOut;
             if ($actualOut->greaterThan($actualIn)) {
                 $totalMinutesWorked += abs($actualIn->diffInMinutes($actualOut));
             }

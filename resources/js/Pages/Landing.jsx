@@ -149,22 +149,14 @@ export default function Landing({ stats }) {
                                 </motion.div>
                             )}
 
-                            <motion.form onSubmit={handleTrack} variants={fadeUp} className="bg-white/10 p-2 rounded-2xl backdrop-blur-md border border-white/20 flex flex-col sm:flex-row gap-2 max-w-lg mb-8">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Enter your Waybill Number..." 
-                                        value={waybill}
-                                        onChange={(e) => setWaybill(e.target.value)}
-                                        className="w-full bg-white/10 border border-white/10 text-white placeholder-slate-400 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white/20 transition-all"
-                                        required
-                                    />
-                                </div>
-                                <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/30 whitespace-nowrap">
-                                    Track Order
-                                </button>
-                            </motion.form>
+                            <motion.div variants={fadeUp} className="mb-8">
+                                <Link 
+                                    href="/track" 
+                                    className="inline-flex items-center gap-3 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-orange-500/30 text-lg hover:scale-105"
+                                >
+                                    <Map className="w-6 h-6" /> Track Delivery
+                                </Link>
+                            </motion.div>
 
                             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4">
                                 <Link href="/login" className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-8 py-3.5 rounded-xl font-bold transition-all">

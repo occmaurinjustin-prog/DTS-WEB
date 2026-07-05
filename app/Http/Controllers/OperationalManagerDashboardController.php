@@ -200,7 +200,7 @@ class OperationalManagerDashboardController extends Controller
         }
 
         // Create delivery with status 'pending' (waiting for admin approval)
-        \App\Models\Delivery::create([
+        $delivery = \App\Models\Delivery::create([
             'user_id' => $userId,
             'driver_id' => $validated['driver_id'],
             'client_id' => $validated['client_id'],
@@ -220,6 +220,8 @@ class OperationalManagerDashboardController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        event(new \App\Events\DeliveryCreated($delivery->delivery_id));
+
         return redirect()->route('operational_manager.deliveries')->with('success', 'Delivery request sent for approval!');
     }
     public function apiDeliveries(Request $request)
@@ -233,16 +235,21 @@ class OperationalManagerDashboardController extends Controller
             ->latest();
 
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('waybill', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function ($q) use ($searchTerm) {
-                      $q->where('client_name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('driver.user', function ($q) use ($searchTerm) {
-                      $q->where('firstname', 'like', "%{$searchTerm}%")
-                        ->orWhere('lastname', 'like', "%{$searchTerm}%");
-                  });
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->where('waybill', 'like', "%{$term}%")
+                          ->orWhereHas('client', function ($q3) use ($term) {
+                              $q3->where('client_name', 'like', "%{$term}%");
+                          })
+                          ->orWhereHas('driver.user', function ($q3) use ($term) {
+                              $q3->where('firstname', 'like', "%{$term}%")
+                                ->orWhere('lastname', 'like', "%{$term}%")
+                                ->orWhere('middle_name', 'like', "%{$term}%");
+                          });
+                    });
+                }
             });
         }
 

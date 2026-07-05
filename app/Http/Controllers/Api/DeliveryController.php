@@ -299,6 +299,8 @@ class DeliveryController extends Controller
         // Update driver availability status based on delivery status
         $this->updateDriverStatusBasedOnDelivery($driver, $validated['delivery_status'], $delivery->delivery_id);
 
+        event(new \App\Events\DeliveryStatusUpdated($delivery->delivery_id, $validated['delivery_status']));
+
         Log::info('Delivery status updated', [
             'delivery_id' => $delivery->delivery_id,
             'driver_id' => $user->user_id,

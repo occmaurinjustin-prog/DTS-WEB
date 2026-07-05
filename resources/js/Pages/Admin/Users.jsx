@@ -6,10 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
 export default function Users({ userStats, authUser, trucks }) {
-    const [showRoleModal, setShowRoleModal] = useState(false);
     const [showUserForm, setShowUserForm] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedRole, setSelectedRole] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
@@ -68,7 +66,6 @@ export default function Users({ userStats, authUser, trucks }) {
         email: '',
         phone: '',
         license_number: '',
-        extension_no: '',
         is_active: true,
     });
 
@@ -103,11 +100,7 @@ export default function Users({ userStats, authUser, trucks }) {
         },
     ];
 
-    const handleRoleSelect = (role) => {
-        setSelectedRole(role);
-        setShowRoleModal(false);
-        setShowUserForm(true);
-    };
+
 
     const handleEdit = (user) => {
         setEditingUser(user);
@@ -121,7 +114,6 @@ export default function Users({ userStats, authUser, trucks }) {
             email: user.email || '',
             phone: user.contact_number || '',
             license_number: user.driver?.license_no || '',
-            extension_no: user.extension_no || '',
             is_active: user.is_active,
         });
         setShowEditModal(true);
@@ -164,12 +156,11 @@ export default function Users({ userStats, authUser, trucks }) {
                 setShowSuccessAnimation(true);
                 setTimeout(() => setShowSuccessAnimation(false), 3000);
                 setShowUserForm(false);
-                setSelectedRole(null);
                 setFormData({
                     username: '', password: '', password_confirmation: '',
                     first_name: '', middle_name: '', last_name: '', email: '', phone: '',
                     license_number: '',
-                    extension_no: '', is_active: true,
+                    is_active: true,
                 });
             },
             onError: (errors) => {
@@ -284,7 +275,7 @@ export default function Users({ userStats, authUser, trucks }) {
                         </button>
                     </div>
                     <button
-                        onClick={() => setShowRoleModal(true)}
+                        onClick={() => setShowUserForm(true)}
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-sm font-medium rounded-lg shadow-md shadow-emerald-500/10 hover:shadow-lg transition-all"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -468,70 +459,17 @@ export default function Users({ userStats, authUser, trucks }) {
                 )}
             </div>
 
-            {/* Role Selection Modal */}
-            {showRoleModal && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen px-4 py-6">
-                        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowRoleModal(false)}></div>
-                        <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-100">
-                            <div className="relative px-8 py-6 border-b border-slate-100">
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-700" />
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-slate-900">Select User Role</h3>
-                                        <p className="text-xs text-slate-500 mt-1">Determine user system capabilities and duty flows</p>
-                                    </div>
-                                    <button onClick={() => setShowRoleModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="p-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    {roles.map((role) => (
-                                        <button
-                                            key={role.value}
-                                            onClick={() => handleRoleSelect(role)}
-                                            className="group relative p-6 bg-white border-2 border-slate-100 rounded-2xl hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300 text-left overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/0 via-emerald-50/0 to-emerald-50/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            <div className="relative flex items-start gap-4">
-                                                <div className={`flex-shrink-0 w-14 h-14 bg-gradient-to-br ${role.color} rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/10 group-hover:scale-105 transition-transform duration-300`}>
-                                                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={role.icon} />
-                                                    </svg>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-base font-bold text-slate-900 mb-1 group-hover:text-[#10B981] transition-colors">{role.label}</h4>
-                                                    <p className="text-xs text-slate-500 leading-relaxed">{role.description}</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* User Form Modal Extracted Component */}
             <AddUserModal
                 show={showUserForm}
                 onClose={() => {
                     setShowUserForm(false);
-                    setSelectedRole(null);
                 }}
-                selectedRole={selectedRole}
                 onSuccess={() => {
-                    setSuccessMessage(`${selectedRole.label} created successfully!`);
+                    setSuccessMessage(`User created successfully!`);
                     setShowSuccessAnimation(true);
                     setTimeout(() => setShowSuccessAnimation(false), 3000);
                     setShowUserForm(false);
-                    setSelectedRole(null);
                 }}
             />
 

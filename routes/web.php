@@ -44,6 +44,7 @@ Route::get('/', function () {
 });
 
 // Public Tracking Route
+Route::get('/track', [\App\Http\Controllers\TrackingController::class, 'index'])->name('track.index');
 Route::get('/track/{waybill}', [\App\Http\Controllers\TrackingController::class, 'show'])->name('track.show');
 
 // Admin login routes (no prefix)
@@ -57,6 +58,7 @@ Route::prefix('api/admin')->middleware('admin')->group(function () {
     Route::get('/drivers', [\App\Http\Controllers\AdminDashboardController::class, 'apiDrivers']);
     Route::get('/users', [\App\Http\Controllers\AdminDashboardController::class, 'apiUsers']);
     Route::get('/driver-stops', [\App\Http\Controllers\Api\DriverStopController::class, 'index']);
+    Route::get('/driver-path/{driverId}', [\App\Http\Controllers\AdminDashboardController::class, 'apiDriverPath']);
 });
 
 // Admin routes
@@ -71,9 +73,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/deliveries/{delivery}/approve', [AdminDashboardController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::patch('/deliveries/{delivery}/reject', [AdminDashboardController::class, 'rejectDelivery'])->name('deliveries.reject');
         Route::post('/deliveries/{delivery}/send-to-driver', [AdminDashboardController::class, 'sendToDriver'])->name('deliveries.send-to-driver');
-        
         // Routes tracking page
         Route::get('/routes', [AdminDashboardController::class, 'routes'])->name('routes');
+        Route::get('/replay-center', [AdminDashboardController::class, 'replayCenter'])->name('replay-center');
         
         // Reports page
         Route::get('/reports', [AdminDashboardController::class, 'reports'])->name('reports');

@@ -119,13 +119,18 @@ class AdminDashboardController extends Controller
         $query = User::latest('created_at');
 
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('firstname', 'like', "%{$searchTerm}%")
-                  ->orWhere('lastname', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%")
-                  ->orWhere('username', 'like', "%{$searchTerm}%")
-                  ->orWhere('contact_number', 'like', "%{$searchTerm}%");
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->where('firstname', 'like', "%{$term}%")
+                          ->orWhere('lastname', 'like', "%{$term}%")
+                          ->orWhere('middle_name', 'like', "%{$term}%")
+                          ->orWhere('email', 'like', "%{$term}%")
+                          ->orWhere('username', 'like', "%{$term}%")
+                          ->orWhere('contact_number', 'like', "%{$term}%");
+                    });
+                }
             });
         }
 
@@ -158,16 +163,21 @@ class AdminDashboardController extends Controller
             ->latest();
 
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('waybill', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function ($q) use ($searchTerm) {
-                      $q->where('client_name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('driver.user', function ($q) use ($searchTerm) {
-                      $q->where('firstname', 'like', "%{$searchTerm}%")
-                        ->orWhere('lastname', 'like', "%{$searchTerm}%");
-                  });
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->where('waybill', 'like', "%{$term}%")
+                          ->orWhereHas('client', function ($q3) use ($term) {
+                              $q3->where('client_name', 'like', "%{$term}%");
+                          })
+                          ->orWhereHas('driver.user', function ($q3) use ($term) {
+                              $q3->where('firstname', 'like', "%{$term}%")
+                                ->orWhere('lastname', 'like', "%{$term}%")
+                                ->orWhere('middle_name', 'like', "%{$term}%");
+                          });
+                    });
+                }
             });
         }
 
@@ -205,6 +215,8 @@ class AdminDashboardController extends Controller
             'approved_at' => now(),
         ]);
 
+        event(new \App\Events\DeliveryStatusUpdated($delivery->delivery_id, 'approved'));
+
         return redirect()->back()->with('success', 'Delivery approved successfully!');
     }
 
@@ -214,6 +226,8 @@ class AdminDashboardController extends Controller
             'delivery_status' => 'cancelled',
             'rejected_at' => now(),
         ]);
+
+        event(new \App\Events\DeliveryStatusUpdated($delivery->delivery_id, 'cancelled'));
 
         return redirect()->back()->with('success', 'Delivery rejected.');
     }
@@ -232,12 +246,28 @@ class AdminDashboardController extends Controller
             'sent_to_driver_by' => Auth::id(),
         ]);
 
+        event(new \App\Events\DeliveryStatusUpdated($delivery->delivery_id, 'assigned'));
+
         // Here you could also:
         // 1. Send a push notification to the driver
         // 2. Create a driver notification record
         // 3. Send an email/SMS to the driver
 
         return redirect()->back()->with('success', 'Delivery details sent to driver successfully!');
+    }
+
+    public function replayCenter()
+    {
+        // Fetch only completed deliveries that might have GPS tracking data
+        $deliveries = Delivery::with(['client', 'driver.user', 'truck'])
+            ->where('delivery_status', 'delivered')
+            ->orderBy('delivered_at', 'desc')
+            ->get();
+
+        return inertia('Admin/ReplayCenter', [
+            'authUser' => Auth::user(),
+            'deliveries' => $deliveries,
+        ]);
     }
 
     public function routes()
@@ -461,15 +491,20 @@ class AdminDashboardController extends Controller
         $query = Driver::with('user')->latest();
 
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('license_no', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function ($q) use ($searchTerm) {
-                      $q->where('firstname', 'like', "%{$searchTerm}%")
-                        ->orWhere('lastname', 'like', "%{$searchTerm}%")
-                        ->orWhere('email', 'like', "%{$searchTerm}%")
-                        ->orWhere('contact_number', 'like', "%{$searchTerm}%");
-                  });
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->where('license_no', 'like', "%{$term}%")
+                          ->orWhereHas('user', function ($q3) use ($term) {
+                              $q3->where('firstname', 'like', "%{$term}%")
+                                ->orWhere('lastname', 'like', "%{$term}%")
+                                ->orWhere('middle_name', 'like', "%{$term}%")
+                                ->orWhere('email', 'like', "%{$term}%")
+                                ->orWhere('contact_number', 'like', "%{$term}%");
+                          });
+                    });
+                }
             });
         }
 
@@ -556,5 +591,33 @@ class AdminDashboardController extends Controller
             'success' => true,
             'data' => $data,
         ]);
+    }
+
+    /**
+     * Get historical GPS path for a driver/delivery for Replay Center
+     */
+    public function apiDriverPath(Request $request, $driverId)
+    {
+        try {
+            $query = \App\Models\DriverLocationHistory::where('driver_id', $driverId)
+                ->orderBy('recorded_at', 'asc');
+
+            if ($request->has('delivery_id')) {
+                $query->where('delivery_id', $request->delivery_id);
+            } else {
+                $hours = $request->get('hours', 8);
+                $query->where('recorded_at', '>=', now()->subHours($hours));
+            }
+
+            $history = $query->get(['latitude', 'longitude', 'speed', 'was_offline', 'recorded_at']);
+
+            return response()->json([
+                'success' => true,
+                'path'    => $history,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching admin location history: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error fetching path'], 500);
+        }
     }
 }

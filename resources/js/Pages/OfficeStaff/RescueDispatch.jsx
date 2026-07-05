@@ -17,7 +17,6 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
     const [dispatchNotes, setDispatchNotes] = useState('');
     
     // Add Parts state
-    const [showPartsModal, setShowPartsModal] = useState(false);
     const [selectedPartId, setSelectedPartId] = useState('');
     const [selectedPartQty, setSelectedPartQty] = useState(1);
     const [addedParts, setAddedParts] = useState([]);
@@ -28,16 +27,23 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
     
     const { flash } = usePage().props;
 
-    // Real-time polling
+    // Real-time WebSockets
     useEffect(() => {
-        const pollInterval = setInterval(() => {
-            router.reload({ 
-                only: ['activeRescues'], 
-                preserveScroll: true, 
-                preserveState: true 
+        if (!window.Echo) return;
+
+        const channel = window.Echo.channel('rescues')
+            .listen('RescueRequestSubmitted', (e) => {
+                console.log('Rescue request submitted via WebSocket', e);
+                router.reload({ 
+                    only: ['activeRescues'], 
+                    preserveScroll: true, 
+                    preserveState: true 
+                });
             });
-        }, 5000);
-        return () => clearInterval(pollInterval);
+
+        return () => {
+            if (window.Echo) window.Echo.leaveChannel('rescues');
+        };
     }, []);
 
     // Initialize Map
@@ -187,12 +193,17 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
 
         router.post(`/office-staff/rescue-dispatch/${selectedRescue.rescue_id}/assign`, {
             mechanic_id: selectedMechanicId,
-            notes: dispatchNotes
+            notes: dispatchNotes,
+            parts: addedParts.map(p => ({
+                Inventory_id: p.Inventory_id,
+                quantity: p.quantity
+            }))
         }, {
             onSuccess: () => {
                 setShowAssignModal(false);
                 setSelectedMechanicId('');
                 setDispatchNotes('');
+                setAddedParts([]);
             }
         });
     };
@@ -227,23 +238,6 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
 
     const handleRemovePart = (index) => {
         setAddedParts(addedParts.filter((_, i) => i !== index));
-    };
-
-    const handleSaveParts = () => {
-        if (!selectedRescue || addedParts.length === 0) return;
-
-        router.post(`/office-staff/rescue-dispatch/${selectedRescue.rescue_id}/add-parts`, {
-            parts: addedParts.map(p => ({
-                Inventory_id: p.Inventory_id,
-                quantity: p.quantity
-            }))
-        }, {
-            onSuccess: () => {
-                setShowPartsModal(false);
-                setAddedParts([]);
-                alert('Parts successfully logged!');
-            }
-        });
     };
 
     return (
@@ -350,16 +344,6 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                         </button>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedRescue(rescue);
-                                                    setShowPartsModal(true);
-                                                }}
-                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
-                                            >
-                                                Manage Parts
-                                            </button>
                                             <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
                                                 <Wrench className="w-3.5 h-3.5" />
                                                 {rescue.mechanic?.username}
@@ -390,10 +374,10 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
             {showAssignModal && selectedRescue && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-                    <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6">
-                        <h2 className="text-xl font-bold text-slate-900 mb-4">Dispatch Mechanic</h2>
+                    <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] flex flex-col">
+                        <h2 className="text-xl font-bold text-slate-900 mb-4">Dispatch Mechanic & Parts</h2>
                         
-                        <form onSubmit={handleAssignSubmit} className="space-y-4">
+                        <form onSubmit={handleAssignSubmit} className="flex-1 overflow-y-auto pr-2 space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Mechanic</label>
                                 <select 
@@ -413,11 +397,62 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Dispatch Notes (Optional)</label>
                                 <textarea
                                     className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                                    rows="3"
+                                    rows="2"
                                     placeholder="E.g., Bring spare tire and jack..."
                                     value={dispatchNotes}
                                     onChange={e => setDispatchNotes(e.target.value)}
                                 ></textarea>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Parts to be Used (Optional)</label>
+                                
+                                {addedParts.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {addedParts.map((p, i) => (
+                                            <div key={i} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                                <div className="flex-1 text-xs font-semibold text-slate-700 truncate">{p.part_name}</div>
+                                                <div className="text-xs font-bold text-slate-900 bg-slate-200 px-2 py-1 rounded">Qty: {p.quantity}</div>
+                                                <button type="button" onClick={() => handleRemovePart(i)} className="text-rose-500 p-1 hover:bg-rose-100 rounded-md">
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                    <div className="flex-1">
+                                        <select 
+                                            className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg p-2"
+                                            value={selectedPartId}
+                                            onChange={e => setSelectedPartId(e.target.value)}
+                                        >
+                                            <option value="">Choose part...</option>
+                                            {inventory.map(item => (
+                                                <option key={item.Inventory_id} value={item.Inventory_id}>
+                                                    {item.part_name} (Stock: {item.quantity})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="w-16">
+                                        <input 
+                                            type="number" min="1" 
+                                            className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg p-2"
+                                            value={selectedPartQty}
+                                            onChange={e => setSelectedPartQty(parseInt(e.target.value) || 1)}
+                                        />
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={handleAddPart}
+                                        disabled={!selectedPartId}
+                                        className="px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
@@ -437,80 +472,6 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-            {/* Add Parts Modal */}
-            {showPartsModal && selectedRescue && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowPartsModal(false)} />
-                    <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6">
-                        <h2 className="text-xl font-bold text-slate-900 mb-4">Add Parts Used</h2>
-                        
-                        <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
-                            {addedParts.map((p, i) => (
-                                <div key={i} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                    <div className="flex-1 text-sm font-semibold text-slate-700">{p.part_name}</div>
-                                    <div className="text-sm font-bold text-slate-900">Qty: {p.quantity}</div>
-                                    <button type="button" onClick={() => handleRemovePart(i)} className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg">
-                                        <XCircle className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex gap-3 items-end mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Select Part</label>
-                                <select 
-                                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-lg p-2.5"
-                                    value={selectedPartId}
-                                    onChange={e => setSelectedPartId(e.target.value)}
-                                >
-                                    <option value="">Choose part...</option>
-                                    {inventory.map(item => (
-                                        <option key={item.Inventory_id} value={item.Inventory_id}>
-                                            {item.part_name} (Stock: {item.quantity})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="w-24">
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Qty</label>
-                                <input 
-                                    type="number" min="1" 
-                                    className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-lg p-2.5"
-                                    value={selectedPartQty}
-                                    onChange={e => setSelectedPartQty(parseInt(e.target.value) || 1)}
-                                />
-                            </div>
-                            <button 
-                                type="button"
-                                onClick={handleAddPart}
-                                disabled={!selectedPartId}
-                                className="px-4 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
-                            >
-                                Add
-                            </button>
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={() => setShowPartsModal(false)}
-                                className="px-5 py-2.5 text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors text-sm font-semibold"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSaveParts}
-                                disabled={addedParts.length === 0}
-                                className="px-5 py-2.5 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-semibold shadow-lg shadow-indigo-200"
-                            >
-                                Save Parts
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

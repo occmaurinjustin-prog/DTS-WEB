@@ -237,11 +237,12 @@ class DriverController extends Controller
             }
 
             $validated = $request->validate([
-                'current_latitude' => 'required|numeric|between:-90,90',
+                'current_latitude'  => 'required|numeric|between:-90,90',
                 'current_longitude' => 'required|numeric|between:-180,180',
-                'current_speed' => 'nullable|numeric|min:0',
-                'heading' => 'nullable|numeric|min:0|max:360',
-                'is_gps_enabled' => 'nullable|boolean',
+                'current_speed'     => 'nullable|numeric|min:0',
+                'heading'           => 'nullable|numeric|min:0|max:360',
+                'is_gps_enabled'    => 'nullable|boolean',
+                'recorded_at'       => 'nullable|date',
             ]);
 
             $driver = Driver::where('user_id', $user->user_id)->first();
@@ -253,13 +254,43 @@ class DriverController extends Controller
                 ], 404);
             }
 
-            // Update location fields
-            $driver->current_latitude = $validated['current_latitude'];
-            $driver->current_longitude = $validated['current_longitude'];
-            $driver->current_speed = $validated['current_speed'] ?? 0;
-            $driver->is_gps_enabled = $validated['is_gps_enabled'] ?? true;
+            // Update live location on the driver record
+            $driver->current_latitude     = $validated['current_latitude'];
+            $driver->current_longitude    = $validated['current_longitude'];
+            $driver->current_speed        = $validated['current_speed'] ?? 0;
+            $driver->is_gps_enabled       = $validated['is_gps_enabled'] ?? true;
             $driver->last_location_update = now();
             $driver->save();
+
+            // Get active delivery for this driver (if any)
+            $activeDelivery = \App\Models\Delivery::where('driver_id', $driver->driver_id)
+                ->whereIn('delivery_status', ['assigned', 'in_transit'])
+                ->first();
+
+            // Append to historical breadcrumb trail
+            \App\Models\DriverLocationHistory::create([
+                'driver_id'    => $driver->driver_id,
+                'delivery_id'  => $activeDelivery?->delivery_id,
+                'latitude'     => $validated['current_latitude'],
+                'longitude'    => $validated['current_longitude'],
+                'speed'        => $validated['current_speed'] ?? 0,
+                'heading'      => $validated['heading'] ?? null,
+                'is_gps_enabled' => $validated['is_gps_enabled'] ?? true,
+                'was_offline'  => false,
+                'recorded_at'  => $validated['recorded_at'] ?? now(),
+            ]);
+
+            $status = $driver->current_speed > 0 ? 'moving' : 'stopped';
+
+            event(new \App\Events\DriverLocationUpdated(
+                $driver->driver_id,
+                $driver->current_latitude,
+                $driver->current_longitude,
+                $driver->current_speed,
+                $status,
+                $driver->is_gps_enabled,
+                $activeDelivery?->delivery_status
+            ));
 
             return response()->json([
                 'success' => true,
@@ -272,6 +303,129 @@ class DriverController extends Controller
                 'success' => false,
                 'message' => 'Error updating location',
             ], 500);
+        }
+    }
+
+    /**
+     * Bulk-upload queued offline GPS coordinates (Store and Forward)
+     * Called by DRIVER_APP when connectivity is restored after being offline
+     */
+    public function updateLocationBatch(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || $user->role !== 'driver') {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+
+            $driver = Driver::where('user_id', $user->user_id)->first();
+
+            if (!$driver) {
+                return response()->json(['success' => false, 'message' => 'Driver not found'], 404);
+            }
+
+            $request->validate([
+                'locations'                   => 'required|array|min:1|max:500',
+                'locations.*.latitude'        => 'required|numeric|between:-90,90',
+                'locations.*.longitude'       => 'required|numeric|between:-180,180',
+                'locations.*.speed'           => 'nullable|numeric|min:0',
+                'locations.*.heading'         => 'nullable|numeric|min:0|max:360',
+                'locations.*.is_gps_enabled'  => 'nullable|boolean',
+                'locations.*.recorded_at'     => 'required|date',
+            ]);
+
+            $activeDelivery = \App\Models\Delivery::where('driver_id', $driver->driver_id)
+                ->whereIn('delivery_status', ['assigned', 'in_transit'])
+                ->first();
+
+            $records = collect($request->locations)->map(function ($loc) use ($driver, $activeDelivery) {
+                return [
+                    'driver_id'      => $driver->driver_id,
+                    'delivery_id'    => $activeDelivery?->delivery_id,
+                    'latitude'       => $loc['latitude'],
+                    'longitude'      => $loc['longitude'],
+                    'speed'          => $loc['speed'] ?? 0,
+                    'heading'        => $loc['heading'] ?? null,
+                    'is_gps_enabled' => $loc['is_gps_enabled'] ?? true,
+                    'was_offline'    => true, // mark these as queued offline points
+                    'recorded_at'    => $loc['recorded_at'],
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+            })->toArray();
+
+            \App\Models\DriverLocationHistory::insert($records);
+
+            // Update driver's live location to the most recent point
+            $latest = collect($request->locations)->sortByDesc('recorded_at')->first();
+            if ($latest) {
+                $driver->current_latitude     = $latest['latitude'];
+                $driver->current_longitude    = $latest['longitude'];
+                $driver->current_speed        = $latest['speed'] ?? 0;
+                $driver->last_location_update = now();
+                $driver->save();
+
+                $status = ($latest['speed'] ?? 0) > 0 ? 'moving' : 'stopped';
+
+                event(new \App\Events\DriverLocationUpdated(
+                    $driver->driver_id,
+                    $latest['latitude'],
+                    $latest['longitude'],
+                    $latest['speed'] ?? 0,
+                    $status,
+                    $latest['is_gps_enabled'] ?? true,
+                    $activeDelivery?->delivery_status
+                ));
+            }
+
+            Log::info('Offline batch location upload', [
+                'driver_id' => $driver->driver_id,
+                'count'     => count($records),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => count($records) . ' offline locations synced',
+                'synced'  => count($records),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error batch uploading locations: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error syncing offline locations',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get a driver's historical path (for Admin Dashboard map & Replay Center)
+     */
+    public function getLocationHistory(Request $request, $driverId)
+    {
+        try {
+            $query = \App\Models\DriverLocationHistory::where('driver_id', $driverId)
+                ->orderBy('recorded_at', 'asc');
+
+            if ($request->has('delivery_id')) {
+                // If a specific delivery is requested (Replay Center), fetch exact path for that delivery
+                $query->where('delivery_id', $request->delivery_id);
+            } else {
+                // Otherwise (Live Routes map), just fetch recent history based on hours
+                $hours = $request->get('hours', 8); // Default last 8 hours
+                $query->where('recorded_at', '>=', now()->subHours($hours));
+            }
+
+            $history = $query->get(['latitude', 'longitude', 'speed', 'was_offline', 'recorded_at']);
+
+            return response()->json([
+                'success' => true,
+                'path'    => $history,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching location history: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error fetching path'], 500);
         }
     }
 

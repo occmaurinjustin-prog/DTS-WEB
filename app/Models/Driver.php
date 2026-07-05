@@ -42,4 +42,9 @@ class Driver extends Model
     {
         return $this->hasMany(Delivery::class, 'driver_id', 'driver_id');
     }
+
+    public function locationHistories(): HasMany
+    {
+        return $this->hasMany(DriverLocationHistory::class, 'driver_id', 'driver_id');
+    }
 }

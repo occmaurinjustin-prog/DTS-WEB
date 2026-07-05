@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Head, Link } from '@inertiajs/react';
 import { 
@@ -198,11 +198,44 @@ function Sidebar({ activeMenu, authUser }) {
 
 export default function OfficeStaffLayout({ children, title, authUser, activeMenu }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [rescueAlert, setRescueAlert] = useState(null);
+
+    useEffect(() => {
+        if (!window.Echo) return;
+
+        const channel = window.Echo.channel('rescues')
+            .listen('RescueRequestSubmitted', (e) => {
+                setRescueAlert(e);
+            });
+
+        return () => {
+            if (window.Echo) window.Echo.leaveChannel('rescues');
+        };
+    }, []);
 
     return (
         <>
             <Head title={title || 'Office Staff Dashboard'} />
             
+            {/* Global Rescue Alert Toast */}
+            {rescueAlert && (
+                <div className="fixed top-4 right-4 z-[999999] bg-red-600 text-white p-4 rounded-xl shadow-2xl flex items-start gap-4 max-w-sm animate-bounce">
+                    <div className="bg-white/20 p-2 rounded-lg">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-bold text-lg">Rescue Request!</h4>
+                        <p className="text-sm text-red-100">{rescueAlert.driverName} reported: {rescueAlert.issueCategory}</p>
+                        <Link href="/office-staff/rescue-dispatch" className="mt-2 inline-block bg-white text-red-600 text-xs font-bold px-3 py-1 rounded hover:bg-red-50">View Details</Link>
+                    </div>
+                    <button onClick={() => setRescueAlert(null)} className="text-white hover:text-red-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            )}
+
             <div className="min-h-screen bg-[#F5F7FB] flex">
                 {/* Desktop Sidebar */}
                 <div className="hidden lg:block">

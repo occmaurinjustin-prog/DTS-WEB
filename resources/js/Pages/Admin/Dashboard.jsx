@@ -27,6 +27,7 @@ const Icons = {
     truck: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
     menu: 'M4 6h16M4 12h16M4 18h16',
     close: 'M6 18L18 6M6 6l12 12',
+    replay: 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
 };
 
 function Icon({ name, className = 'w-5 h-5' }) {
@@ -117,6 +118,7 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
         { id: 'trucks', name: 'Trucks', icon: 'trucks', href: '/admin/trucks' },
         { id: 'deliveries', name: 'Deliveries', icon: 'deliveries', href: '/admin/deliveries' },
         { id: 'routes', name: 'Routes', icon: 'routes', href: '/admin/routes' },
+        { id: 'replay-center', name: 'Replay Center', icon: 'replay', href: '/admin/replay-center' },
         { id: 'driverStops', name: 'Driver Stops', icon: 'tracking', href: '/admin/driver-stops' },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/admin/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: notificationCount || null },
@@ -144,11 +146,10 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
                         <a
                             key={item.id}
                             href={item.href}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 border group ${
-                                isActive 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-md font-semibold' 
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 border group ${isActive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-md font-semibold'
                                     : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-slate-100'
-                            }`}
+                                }`}
                         >
                             <Icon name={item.icon} className={`w-5 h-5 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
                             <span className="text-sm">{item.name}</span>
@@ -161,24 +162,6 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
                     );
                 })}
             </nav>
-
-            {/* Bottom Section */}
-            <div className="mt-auto pt-6 border-t border-slate-800">
-                <div className="flex items-center gap-3 px-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <span className="text-white font-bold text-sm">A</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-semibold truncate">Administrator</p>
-                        <p className="text-slate-400 text-xs truncate">System Admin</p>
-                    </div>
-                    <LogoutButton />
-                </div>
-                <div className="mt-4 flex items-center gap-2 px-2">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-emerald-400 text-xs font-semibold tracking-wider uppercase">System Online</span>
-                </div>
-            </div>
         </div>
     );
 }
@@ -262,18 +245,17 @@ function DeliveryStatusChart({ data }) {
                     <h3 className="text-sm font-semibold text-slate-900 mb-0.5">Total Deliveries</h3>
                     <p className="text-xs text-slate-500">Deliveries over time</p>
                 </div>
-                
+
                 {/* Time Period Selector */}
                 <div className="flex bg-slate-100 rounded-lg p-1">
                     {['day', 'week', 'month'].map((period) => (
                         <button
                             key={period}
                             onClick={() => setTimePeriod(period)}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                timePeriod === period
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${timePeriod === period
                                     ? 'bg-white text-slate-900 shadow-sm'
                                     : 'text-slate-600 hover:text-slate-900'
-                            }`}
+                                }`}
                         >
                             {period.charAt(0).toUpperCase() + period.slice(1)}
                         </button>
@@ -290,18 +272,18 @@ function DeliveryStatusChart({ data }) {
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis 
-                                dataKey="name" 
+                            <XAxis
+                                dataKey="name"
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fontSize: 10, fill: '#64748B' }}
                             />
-                            <YAxis 
+                            <YAxis
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fontSize: 10, fill: '#64748B' }}
                             />
-                            <Tooltip 
+                            <Tooltip
                                 contentStyle={{
                                     backgroundColor: '#FFFFFF',
                                     border: '1px solid #E2E8F0',
@@ -309,10 +291,10 @@ function DeliveryStatusChart({ data }) {
                                     fontSize: '12px',
                                 }}
                             />
-                            <Line 
-                                type="monotone" 
-                                dataKey="value" 
-                                stroke="#4F46E5" 
+                            <Line
+                                type="monotone"
+                                dataKey="value"
+                                stroke="#4F46E5"
                                 strokeWidth={2}
                                 dot={{ fill: '#4F46E5', strokeWidth: 2, r: 4 }}
                                 activeDot={{ r: 6 }}
@@ -497,7 +479,7 @@ function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle })
                 </button>
 
                 {/* Dark Mode Toggle */}
-                <button 
+                <button
                     onClick={onDarkModeToggle}
                     className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all"
                 >
@@ -515,6 +497,11 @@ function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle })
                         <p className="text-sm font-medium text-gray-900">{authUser?.firstname || 'Admin'} {authUser?.lastname || 'User'}</p>
                         <p className="text-xs text-gray-500">Administrator</p>
                     </div>
+                </div>
+
+                {/* Logout Button */}
+                <div className="pl-4 border-l border-gray-200 ml-2">
+                    <LogoutButton />
                 </div>
             </div>
         </header>
@@ -615,8 +602,8 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
                 {/* Main Content */}
                 <div className="flex-1 ml-[260px]">
                     {/* Header */}
-                    <Header 
-                        authUser={authUser} 
+                    <Header
+                        authUser={authUser}
                         notificationCount={notificationCount}
                         darkMode={darkMode}
                         onDarkModeToggle={() => setDarkMode(!darkMode)}

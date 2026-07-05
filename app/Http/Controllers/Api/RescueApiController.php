@@ -56,6 +56,12 @@ class RescueApiController extends Controller
                 }
             }
 
+            event(new \App\Events\RescueRequestSubmitted(
+                $rescueRequest->rescue_id,
+                $user->firstname . ' ' . $user->lastname,
+                $rescueRequest->issue_category
+            ));
+
             return response()->json([
                 'message' => 'Rescue request submitted successfully',
                 'data' => $rescueRequest->load('media')

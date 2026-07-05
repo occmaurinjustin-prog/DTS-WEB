@@ -18,12 +18,17 @@ class AttendanceController extends Controller
             }]);
 
         if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('firstname', 'like', "%{$search}%")
-                  ->orWhere('lastname', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->where('firstname', 'like', "%{$term}%")
+                          ->orWhere('lastname', 'like', "%{$term}%")
+                          ->orWhere('middle_name', 'like', "%{$term}%")
+                          ->orWhere('username', 'like', "%{$term}%")
+                          ->orWhere('email', 'like', "%{$term}%");
+                    });
+                }
             });
         }
 

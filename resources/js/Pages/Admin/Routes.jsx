@@ -186,22 +186,65 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         setDriverList(updatedDrivers);
     }, [drivers]);
 
-    // Real-time driver location polling
+    // Real-time driver location updates via WebSockets
     useEffect(() => {
-        const pollInterval = setInterval(() => {
-            // Always refresh driver data for real-time status/speed updates
-            router.reload({ 
-                only: ['drivers'], 
-                preserveScroll: true, 
-                preserveState: true,
-                onSuccess: () => {
-                    console.log('Driver data refreshed (status, speed, location)');
-                }
-            });
-        }, 5000); // Poll every 5 seconds
+        if (!window.Echo) return;
 
-        return () => clearInterval(pollInterval);
-    }, []); // Empty deps - always poll regardless of selection
+        const channel = window.Echo.channel('drivers')
+            .listen('DriverLocationUpdated', (e) => {
+                console.log('Driver location updated via WebSocket', e);
+                setDriverList(prevList => {
+                    const newList = [...prevList];
+                    const index = newList.findIndex(d => d.id === e.id);
+                    if (index !== -1) {
+                        const updatedDriver = {
+                            ...newList[index],
+                            currentLocation: { lat: e.lat, lng: e.lng },
+                            speed: e.speed,
+                            status: e.status,
+                            isGpsEnabled: e.isGpsEnabled,
+                            lastUpdated: 'Just now'
+                        };
+
+                        // If the backend provided the updated delivery status, apply it so the route updates in real-time
+                        if (e.deliveryStatus && updatedDriver.delivery) {
+                            updatedDriver.delivery = {
+                                ...updatedDriver.delivery,
+                                delivery_status: e.deliveryStatus
+                            };
+                            updatedDriver.eta = e.deliveryStatus === 'in_transit' ? 'In Transit' :
+                                               e.deliveryStatus === 'assigned' ? 'Assigned' : 'Unknown';
+                        }
+
+                        // Update the map marker immediately!
+                        if (markers.current && markers.current[e.id]?.driver) {
+                            markers.current[e.id].driver.setLngLat([e.lng, e.lat]);
+                        }
+
+                        newList[index] = updatedDriver;
+                    }
+                    return newList;
+                });
+            });
+
+        return () => {
+            if (window.Echo) {
+                window.Echo.leaveChannel('drivers');
+            }
+        };
+    }, []); // Empty deps - attach listener once
+
+    // Watch for delivery status changes in real-time
+    useEffect(() => {
+        if (selectedDriver && driverList) {
+            const currentDriver = driverList.find(d => d.id === selectedDriver.id);
+            if (currentDriver && currentDriver.delivery?.delivery_status !== selectedDriver.delivery?.delivery_status) {
+                console.log('Delivery status changed in real-time! Redrawing map markers...', currentDriver.delivery?.delivery_status);
+                setSelectedDriver(currentDriver);
+                showDriverOnMap(currentDriver);
+            }
+        }
+    }, [driverList, selectedDriver]);
 
     // Initialize Mapbox map (same approach as working LocationPickerModal)
     useEffect(() => {
@@ -465,6 +508,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         // DRAW ROUTE
         await drawRoute(driver);
 
+        // DRAW HISTORICAL BREADCRUMB PATH
+        await fetchAndDrawPath(driver.id);
+
         // FLY TO DRIVER
         map.current.flyTo({
             center: [
@@ -474,6 +520,69 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             zoom: 13,
             duration: 1000
         });
+    };
+
+    // Fetch historical path from API and draw it on the map
+    const fetchAndDrawPath = async (driverId) => {
+        if (!map.current) return;
+
+        // Remove previous path layers if any
+        ['driver-path-online', 'driver-path-offline'].forEach(layerId => {
+            if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+            if (map.current.getSource(layerId)) map.current.removeSource(layerId);
+        });
+
+        try {
+            const token = localStorage.getItem('authToken') || '';
+            const res = await fetch(`/api/admin/driver-path/${driverId}?hours=8`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            const data = await res.json();
+            if (!data.success || !data.path?.length) return;
+
+            // Split online vs offline segments
+            const onlineCoords  = data.path.filter(p => !p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
+            const offlineCoords = data.path.filter(p => p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
+
+            // Draw solid blue line for online points
+            if (onlineCoords.length >= 2) {
+                map.current.addSource('driver-path-online', {
+                    type: 'geojson',
+                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: onlineCoords } }
+                });
+                map.current.addLayer({
+                    id: 'driver-path-online',
+                    type: 'line',
+                    source: 'driver-path-online',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#3B82F6', 'line-width': 3, 'line-opacity': 0.8 }
+                });
+            }
+
+            // Draw dashed orange line for offline (queued) points
+            if (offlineCoords.length >= 2) {
+                map.current.addSource('driver-path-offline', {
+                    type: 'geojson',
+                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: offlineCoords } }
+                });
+                map.current.addLayer({
+                    id: 'driver-path-offline',
+                    type: 'line',
+                    source: 'driver-path-offline',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                        'line-color': '#F97316',
+                        'line-width': 3,
+                        'line-opacity': 0.9,
+                        'line-dasharray': [2, 2]
+                    }
+                });
+            }
+
+            console.log(`Historical path drawn: ${onlineCoords.length} online, ${offlineCoords.length} offline points`);
+        } catch (e) {
+            console.warn('Could not load historical path:', e);
+        }
     };
 
     // Create custom driver marker element
@@ -857,10 +966,14 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     };
 
     // Filter drivers based on search
-    const filteredDrivers = driverList.filter(driver =>
-        driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        driver.plateNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredDrivers = driverList.filter(driver => {
+        if (!searchTerm) return true;
+        const searchParts = searchTerm.toLowerCase().split(' ').filter(part => part.trim() !== '');
+        return searchParts.every(part => 
+            driver.name.toLowerCase().includes(part) || 
+            driver.plateNumber.toLowerCase().includes(part)
+        );
+    });
 
     // Get status badge styling
     const getStatusBadge = (status) => {

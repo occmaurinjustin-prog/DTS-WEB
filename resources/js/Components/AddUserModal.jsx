@@ -3,7 +3,41 @@ import { router } from '@inertiajs/react';
 import FaceRegistrationSection from './FaceRegistrationSection';
 import LoadingOverlay from './LoadingOverlay';
 
-export default function AddUserModal({ show, onClose, selectedRole, onSuccess }) {
+export default function AddUserModal({ show, onClose, onSuccess }) {
+    const roles = [
+        {
+            value: 'office_staff',
+            label: 'Office Staff',
+            icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+            color: 'from-slate-800 to-slate-900',
+            description: 'Handle administrative tasks'
+        },
+        {
+            value: 'operation_manager',
+            label: 'Operation Manager',
+            icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+            color: 'from-slate-700 to-slate-800',
+            description: 'Manage operations and deliveries'
+        },
+        {
+            value: 'driver',
+            label: 'Driver',
+            icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
+            color: 'from-emerald-500 to-teal-500',
+            description: 'Handle deliveries and transport'
+        },
+        {
+            value: 'mechanic',
+            label: 'Mechanic',
+            icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+            color: 'from-emerald-600 to-teal-700',
+            description: 'Maintain and repair fleet vehicles'
+        },
+    ];
+
+    const [selectedRoleValue, setSelectedRoleValue] = useState(roles[0].value);
+    const selectedRole = roles.find(r => r.value === selectedRoleValue);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [images, setImages] = useState([]);
@@ -16,11 +50,10 @@ export default function AddUserModal({ show, onClose, selectedRole, onSuccess })
         email: '',
         phone: '',
         license_number: '',
-        extension_no: '',
         is_active: true,
     });
 
-    if (!show || !selectedRole) return null;
+    if (!show) return null;
 
     const dataURLtoFile = (dataurl, filename) => {
         let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
@@ -123,6 +156,23 @@ export default function AddUserModal({ show, onClose, selectedRole, onSuccess })
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6 p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+                        {/* Role Selection */}
+                        <div className="space-y-4">
+                            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">User Role</h4>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Role <span className="text-red-500">*</span></label>
+                                <select 
+                                    value={selectedRoleValue} 
+                                    onChange={(e) => setSelectedRoleValue(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-[#10B981] focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none"
+                                >
+                                    {roles.map(role => (
+                                        <option key={role.value} value={role.value}>{role.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
                         {/* Basic Fields */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Full Name</h4>
@@ -168,18 +218,7 @@ export default function AddUserModal({ show, onClose, selectedRole, onSuccess })
                             <p className="text-xs text-amber-600 font-medium">A temporary password will be automatically generated and sent to this email address.</p>
                         </div>
 
-                        {selectedRole.value === 'office_staff' && (
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Work Details</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Extension</label>
-                                        <input type="text" value={formData.extension_no} onChange={(e) => setFormData({ ...formData, extension_no: e.target.value })}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-emerald-300 focus:border-[#10B981] focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none" placeholder="e.g. 101" />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+
 
                         {selectedRole.value === 'driver' && (
                             <div className="space-y-4">

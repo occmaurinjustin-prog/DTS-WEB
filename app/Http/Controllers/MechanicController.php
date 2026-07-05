@@ -342,8 +342,8 @@ class MechanicController extends Controller
                 'inspection_date' => 'required|date',
                 'overall_condition' => 'required|in:good,fair,poor,critical',
                 'mileage' => 'nullable|numeric',
-                'issue_title' => 'required|string',
-                'issue_description' => 'required|string',
+                'issue_title' => 'nullable|string',
+                'issue_description' => 'nullable|string',
             ]);
 
             // Create a maintenance report entry for the inspection
@@ -353,8 +353,8 @@ class MechanicController extends Controller
                 'inspection_date' => $validated['inspection_date'],
                 'overall_condition' => $validated['overall_condition'],
                 'mileage' => $validated['mileage'],
-                'issue_title' => $validated['issue_title'],
-                'issue_description' => $validated['issue_description'],
+                'issue_title' => empty($validated['issue_title']) ? '' : $validated['issue_title'],
+                'issue_description' => empty($validated['issue_description']) ? '' : $validated['issue_description'],
                 'status' => 'pending',
             ]);
 

@@ -1396,6 +1396,20 @@ const FleetManagement = ({ authUser, reports: initialReports, mechanics = [] }) 
                                                                     Schedule Repair
                                                                 </button>
                                                             )}
+                                                            {inspection.status === 'pending' && !inspection.issue_title && (
+                                                                <button
+                                                                    onClick={() => handleUpdateInspectionStatus(inspection.id, 'reviewed')}
+                                                                    disabled={loading}
+                                                                    className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                                                                >
+                                                                    Acknowledge
+                                                                </button>
+                                                            )}
+                                                            {inspection.status === 'reviewed' && !inspection.issue_title && (
+                                                                <span className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                                                                    Reviewed
+                                                                </span>
+                                                            )}
                                                             {inspection.status === 'scheduled' && (
                                                                 <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg">
                                                                     Scheduled

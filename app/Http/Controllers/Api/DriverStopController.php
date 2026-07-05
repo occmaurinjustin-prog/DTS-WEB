@@ -139,14 +139,19 @@ class DriverStopController extends Controller
             ->orderBy('stopped_at', 'desc');
 
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->whereHas('driver.user', function ($q2) use ($searchTerm) {
-                    $q2->where('firstname', 'like', "%{$searchTerm}%")
-                      ->orWhere('lastname', 'like', "%{$searchTerm}%");
-                })->orWhereHas('delivery', function ($q2) use ($searchTerm) {
-                    $q2->where('waybill', 'like', "%{$searchTerm}%");
-                });
+            $searchTerms = array_filter(explode(' ', $request->search));
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->where(function ($q2) use ($term) {
+                        $q2->whereHas('driver.user', function ($q3) use ($term) {
+                            $q3->where('firstname', 'like', "%{$term}%")
+                              ->orWhere('lastname', 'like', "%{$term}%")
+                              ->orWhere('middle_name', 'like', "%{$term}%");
+                        })->orWhereHas('delivery', function ($q3) use ($term) {
+                            $q3->where('waybill', 'like', "%{$term}%");
+                        });
+                    });
+                }
             });
         }
 

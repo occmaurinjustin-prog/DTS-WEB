@@ -37,8 +37,6 @@ class UserManagementController extends Controller
                 'last_name' => 'required|string|max:255',
                 'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
                 'is_active' => 'nullable|boolean',
-                // Role-specific fields
-                'extension_no' => 'nullable|string|max:50|unique:users,extension_no',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
                 'truck_plate' => 'nullable|string|max:255',
@@ -127,7 +125,6 @@ class UserManagementController extends Controller
                 'middle_name' => $data['middle_name'] ?? null,
                 'lastname' => $data['last_name'],
                 'contact_number' => $data['phone'],
-                'extension_no' => $data['extension_no'] ?? null,
             ]);
             
             \Log::info('User data updated successfully');
@@ -188,8 +185,6 @@ class UserManagementController extends Controller
                 'middle_name' => 'nullable|string|max:255',
                 'last_name' => 'required|string|max:255',
                 'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
-                // Role-specific fields
-                'extension_no' => 'nullable|string|max:50|unique:users,extension_no,' . $user->user_id . ',user_id',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
                 'truck_plate' => 'nullable|string|max:255',

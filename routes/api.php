@@ -58,6 +58,8 @@ Route::middleware(['cors'])->group(function () {
 
         // Driver location tracking
         Route::post('/driver/location', [DriverController::class, 'updateLocation']);
+        Route::post('/driver/location/batch', [DriverController::class, 'updateLocationBatch']); // Offline queue flush
+        Route::get('/drivers/{driverId}/path', [DriverController::class, 'getLocationHistory']); // Historical path for admin map
 
         // Driver stops tracking
         Route::post('/driver/stops/start', [\App\Http\Controllers\Api\DriverStopController::class, 'start']);

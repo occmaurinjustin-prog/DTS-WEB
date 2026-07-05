@@ -7,6 +7,14 @@ use Illuminate\Http\Request;
 
 class TrackingController extends Controller
 {
+    public function index()
+    {
+        return inertia('Tracking', [
+            'delivery' => null,
+            'currentLocation' => null
+        ]);
+    }
+
     public function show($waybill)
     {
         $delivery = Delivery::where('waybill', $waybill)
@@ -14,11 +22,11 @@ class TrackingController extends Controller
             ->first();
 
         if (!$delivery) {
-            return back(302, [], '/')->with('error', 'Invalid Tracking Number. Please check and try again.');
+            return redirect('/track')->with('error', 'Invalid Tracking Number. Please check and try again.');
         }
 
         if ($delivery->delivery_status === 'delivered') {
-            return back(302, [], '/')->with('error', 'This waybill has already been delivered and is expired. Tracking is no longer active.');
+            return redirect('/track')->with('error', 'This waybill has already been delivered and is expired. Tracking is no longer active.');
         }
 
         $currentLocation = null;
