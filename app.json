@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "6e658fb9-b16f-4ade-8e78-6beca69e40f5"
+      }
+    },
+    "android": {
+      "package": "com.maurinjustin.inertiatailwind"
+    }
+  }
+}

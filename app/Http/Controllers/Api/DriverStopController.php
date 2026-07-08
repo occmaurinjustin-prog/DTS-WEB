@@ -37,7 +37,7 @@ class DriverStopController extends Controller
             'stopped_at' => 'nullable|date',
         ]);
 
-        $stoppedAt = $request->filled('stopped_at') ? Carbon::parse($request->stopped_at) : Carbon::now();
+        $stoppedAt = $request->filled('stopped_at') ? Carbon::parse($request->stopped_at)->setTimezone(config('app.timezone')) : Carbon::now();
 
         // Find active delivery for the driver to associate with the stop
         $activeDelivery = Delivery::where('driver_id', $driver->driver_id)
@@ -104,7 +104,7 @@ class DriverStopController extends Controller
             ], 404);
         }
 
-        $resumedAt = $request->filled('resumed_at') ? Carbon::parse($request->resumed_at) : Carbon::now();
+        $resumedAt = $request->filled('resumed_at') ? Carbon::parse($request->resumed_at)->setTimezone(config('app.timezone')) : Carbon::now();
         
         // Ensure resumed_at is after stopped_at
         if ($resumedAt->lessThan($activeStop->stopped_at)) {

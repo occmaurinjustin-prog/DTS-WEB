@@ -35,9 +35,11 @@ const PhoneIcon = ({ className }) => (
 );
 
 const TruckIcon = ({ className }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20">
-        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="3" width="15" height="13" rx="1"></rect>
+        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+        <circle cx="5.5" cy="18.5" r="2.5"></circle>
+        <circle cx="18.5" cy="18.5" r="2.5"></circle>
     </svg>
 );
 
@@ -100,6 +102,107 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const map = useRef(null);
     const markers = useRef({});
     const routeLines = useRef({});
+    const selectedDriverRef = useRef(null);
+    const latestRouteRequest = useRef({});
+    const lastRoutePosition = useRef({});
+    const animationFrames = useRef({});
+    const followDriverRef = useRef(false);
+
+    // Keep ref in sync with state for websocket access
+    useEffect(() => {
+        selectedDriverRef.current = selectedDriver;
+    }, [selectedDriver]);
+
+    useEffect(() => {
+        followDriverRef.current = followDriver;
+    }, [followDriver]);
+
+    // Math for Bearing
+    function calculateBearing(startLat, startLng, destLat, destLng) {
+        const toRad = (deg) => deg * Math.PI / 180;
+        const toDeg = (rad) => rad * 180 / Math.PI;
+        
+        const startLatRad = toRad(startLat);
+        const startLngRad = toRad(startLng);
+        const destLatRad = toRad(destLat);
+        const destLngRad = toRad(destLng);
+
+        const y = Math.sin(destLngRad - startLngRad) * Math.cos(destLatRad);
+        const x = Math.cos(startLatRad) * Math.sin(destLatRad) -
+                  Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(destLngRad - startLngRad);
+        
+        let bearing = toDeg(Math.atan2(y, x));
+        return (bearing + 360) % 360;
+    }
+
+    // Smooth Marker Animation
+    function animateMarker(driverId, startLngLat, endLngLat) {
+        if (!markers.current[driverId]?.driver) return;
+        
+        const marker = markers.current[driverId].driver;
+        
+        // Calculate bearing
+        const bearing = calculateBearing(startLngLat[1], startLngLat[0], endLngLat[1], endLngLat[0]);
+        
+        const movedDistance = Math.abs(startLngLat[1] - endLngLat[1]) + Math.abs(startLngLat[0] - endLngLat[0]);
+        if (movedDistance > 0.00001) {
+            if (typeof marker.setRotation === 'function') {
+                // Navigation pointer faces North (0deg). No offset needed.
+                marker.setRotation(bearing);
+            }
+        }
+
+        const duration = 1000; // 1 second transition
+        const startTime = performance.now();
+
+        if (animationFrames.current[driverId]) {
+            cancelAnimationFrame(animationFrames.current[driverId]);
+        }
+
+        const animate = (currentTime) => {
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const easeProgress = progress * (2 - progress); // Ease out quad
+
+            const currentLng = startLngLat[0] + (endLngLat[0] - startLngLat[0]) * easeProgress;
+            const currentLat = startLngLat[1] + (endLngLat[1] - startLngLat[1]) * easeProgress;
+
+            marker.setLngLat([currentLng, currentLat]);
+
+            if (progress < 1) {
+                animationFrames.current[driverId] = requestAnimationFrame(animate);
+            }
+        };
+
+        animationFrames.current[driverId] = requestAnimationFrame(animate);
+    }
+
+    // Smart Camera Panning
+    function smartPanTo(lng, lat) {
+        if (!map.current || !followDriverRef.current) return;
+
+        const bounds = map.current.getBounds();
+        const mapSw = bounds.getSouthWest();
+        const mapNe = bounds.getNorthEast();
+
+        const lngSpan = mapNe.lng - mapSw.lng;
+        const latSpan = mapNe.lat - mapSw.lat;
+
+        const margin = 0.2; // 20% safe zone
+        
+        const isNearEdge = 
+            lng < mapSw.lng + (lngSpan * margin) ||
+            lng > mapNe.lng - (lngSpan * margin) ||
+            lat < mapSw.lat + (latSpan * margin) ||
+            lat > mapNe.lat - (latSpan * margin);
+
+        if (isNearEdge) {
+            map.current.panTo([lng, lat], {
+                duration: 1500,
+                essential: true
+            });
+        }
+    }
 
     // Transform real driver data to match component expectations
     const transformedDrivers = drivers.map(driver => {
@@ -218,7 +321,33 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
                         // Update the map marker immediately!
                         if (markers.current && markers.current[e.id]?.driver) {
-                            markers.current[e.id].driver.setLngLat([e.lng, e.lat]);
+                            const startLngLat = markers.current[e.id].driver.getLngLat().toArray();
+                            const endLngLat = [e.lng, e.lat];
+                            animateMarker(e.id, startLngLat, endLngLat);
+                            
+                            // Redraw the route line if this is the currently viewed driver so it vanishes behind them
+                            if (selectedDriverRef.current?.id === e.id) {
+                                smartPanTo(e.lng, e.lat);
+
+                                const last = lastRoutePosition.current[e.id];
+
+                                if (!last) {
+                                    lastRoutePosition.current[e.id] = {
+                                        lat: e.lat,
+                                        lng: e.lng
+                                    };
+                                    drawRoute(updatedDriver);
+                                } else {
+                                    const moved = Math.abs(last.lat - e.lat) + Math.abs(last.lng - e.lng);
+                                    if (moved > 0.0003) {
+                                        lastRoutePosition.current[e.id] = {
+                                            lat: e.lat,
+                                            lng: e.lng
+                                        };
+                                        drawRoute(updatedDriver);
+                                    }
+                                }
+                            }
                         }
 
                         newList[index] = updatedDriver;
@@ -331,7 +460,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const updateAllDriversPositions = () => {
         if (!map.current) return;
 
-        transformedDrivers.forEach(driver => {
+        driverList.forEach(driver => {
             if (markers.current[driver.id]?.driver) {
                 // Update existing marker
                 markers.current[driver.id].driver.setLngLat([
@@ -368,7 +497,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     // Update map when driver data changes (real-time updates)
     useEffect(() => {
         if (selectedDriver && map.current) {
-            const updatedDriver = transformedDrivers.find(d => d.id === selectedDriver.id);
+            const updatedDriver = driverList.find(d => d.id === selectedDriver.id);
             if (updatedDriver) {
                 setSelectedDriver(updatedDriver);
                 updateDriverPosition(updatedDriver);
@@ -588,18 +717,18 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     // Create custom driver marker element
     const createDriverMarker = (driver) => {
         const el = document.createElement('div');
-        el.className = 'relative';
+        el.className = 'relative flex items-center justify-center';
         
         const isGpsOn = driver.isGpsEnabled ?? true;
-        const outerClass = isGpsOn ? 'bg-blue-500 animate-ping' : 'bg-red-500';
+        const outerClass = isGpsOn ? 'bg-blue-500 animate-pulse' : 'bg-red-500';
         const innerClass = isGpsOn ? 'bg-blue-600' : 'bg-red-600';
         
+        // Using a sleek navigation arrow (chevron) for the map marker instead of a truck
         el.innerHTML = `
-            <div class="absolute inset-0 ${outerClass} rounded-full opacity-75"></div>
-            <div class="relative ${innerClass} rounded-full p-2 border-2 border-white shadow-lg">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+            <div class="absolute w-12 h-12 ${outerClass} rounded-full opacity-30"></div>
+            <div class="relative ${innerClass} w-8 h-8 rounded-full border-2 border-white shadow-xl flex items-center justify-center">
+                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24" style="margin-bottom: 2px;">
+                    <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
                 </svg>
             </div>
         `;
@@ -681,120 +810,67 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
         const routeId = `route-${driver.id}`;
 
-        // Validate coordinates before processing
-        if (!isValidCoordinate(driver.pickup.lat, driver.pickup.lng)) {
-            console.error('Invalid pickup coordinates:', driver.pickup.lat, driver.pickup.lng);
+        const requestId = Date.now();
+        latestRouteRequest.current[driver.id] = requestId;
+
+        let coordinates = [];
+
+        if (driver.delivery?.delivery_status === 'in_transit') {
+            coordinates = [
+                [driver.currentLocation.lng, driver.currentLocation.lat],
+                [driver.destination.lng, driver.destination.lat],
+            ];
+        } else {
+            coordinates = [
+                [driver.currentLocation.lng, driver.currentLocation.lat],
+                [driver.pickup.lng, driver.pickup.lat],
+            ];
+        }
+
+        const route = await getDirections(coordinates);
+
+        if (!route) return;
+
+        // Ignore old API responses
+        if (latestRouteRequest.current[driver.id] !== requestId) {
             return;
         }
-        if (!isValidCoordinate(driver.destination.lat, driver.destination.lng)) {
-            console.error('Invalid destination coordinates:', driver.destination.lat, driver.destination.lng);
-            return;
+
+        const routeData = {
+            type: "Feature",
+            geometry: {
+                type: "LineString",
+                coordinates: route.coordinates,
+            },
+        };
+
+        const source = map.current.getSource(routeId);
+
+        if (source) {
+            source.setData(routeData);
+        } else {
+            map.current.addSource(routeId, {
+                type: "geojson",
+                data: routeData,
+            });
+
+            map.current.addLayer({
+                id: routeId,
+                type: "line",
+                source: routeId,
+                layout: {
+                    "line-join": "round",
+                    "line-cap": "round",
+                },
+                paint: {
+                    "line-color": "#2563EB",
+                    "line-width": 5,
+                    "line-opacity": 0.85,
+                },
+            });
         }
-        if (!isValidCoordinate(driver.currentLocation.lat, driver.currentLocation.lng)) {
-            console.error('Invalid current location coordinates:', driver.currentLocation.lat, driver.currentLocation.lng);
-            return;
-        }
-
-        // REMOVE OLD LAYER
-        if (map.current.getLayer(routeId)) {
-            try {
-                map.current.removeLayer(routeId);
-            } catch (e) {
-                console.log('Layer already removed or does not exist:', e);
-            }
-        }
-
-        // REMOVE OLD SOURCE with retry logic
-        if (map.current.getSource(routeId)) {
-            try {
-                map.current.removeSource(routeId);
-            } catch (e) {
-                console.log('Source already removed or does not exist:', e);
-            }
-        }
-
-        try {
-            let routeCoordinates = [];
-
-            // DRIVER ALREADY PICKED UP CARGO
-            if (driver.delivery?.delivery_status === 'in_transit') {
-
-                const coordinates = [
-                    [driver.currentLocation.lng, driver.currentLocation.lat],
-                    [driver.destination.lng, driver.destination.lat]
-                ];
-
-                const route = await getDirections(coordinates);
-
-                if (route) {
-                    routeCoordinates = route.coordinates;
-                }
-
-            } else {
-
-                // BEFORE PICKUP
-                // ONLY show route to pickup location
-                const coordinates = [
-                    [driver.currentLocation.lng, driver.currentLocation.lat],
-                    [driver.pickup.lng, driver.pickup.lat]
-                ];
-
-                const route = await getDirections(coordinates);
-
-                if (route) {
-                    routeCoordinates = route.coordinates;
-                } else {
-                    console.error('Road route failed');
-                    return;
-                }
-            }
-
-            const routeData = {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: routeCoordinates
-                }
-            };
-
-            // Check if source already exists to prevent duplicate error
-            if (map.current.getSource(routeId)) {
-                // Update existing source data instead of adding new one
-                map.current.getSource(routeId).setData(routeData);
-            } else {
-                // Add new source
-                map.current.addSource(routeId, {
-                    type: 'geojson',
-                    data: routeData
-                });
-            }
-
-            // Check if layer already exists
-            if (!map.current.getLayer(routeId)) {
-                map.current.addLayer({
-                    id: routeId,
-                    type: 'line',
-                    source: routeId,
-                    layout: {
-                        'line-join': 'round',
-                        'line-cap': 'round'
-                    },
-                    paint: {
-                        'line-color': '#3B82F6',
-                        'line-width': 5,
-                        'line-opacity': 0.8
-                    }
-                });
-            }
-
-            routeLines.current[routeId] = true;
-
-        } catch (error) {
-
-            console.error('Route drawing error:', error);
-
-            drawStraightLineRoute(driver, routeId);
-        }
+        
+        routeLines.current[routeId] = true;
     };
 
     // Fallback straight line route
@@ -881,29 +957,18 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         if (!map.current || !markers.current[driver.id]?.driver) return;
 
         const driverMarker = markers.current[driver.id].driver;
-        driverMarker.setLngLat([
-            driver.currentLocation.lng,
-            driver.currentLocation.lat
-        ]);
+        const startLngLat = driverMarker.getLngLat().toArray();
+        const endLngLat = [driver.currentLocation.lng, driver.currentLocation.lat];
+
+        // Animate marker and rotation
+        animateMarker(driver.id, startLngLat, endLngLat);
 
         // Redraw route with new position
         drawRoute(driver);
 
-        // If following driver, pan map to new position with smooth animation
-        if (followDriver) {
-            map.current.flyTo({
-                center: [
-                    driver.currentLocation.lng,
-                    driver.currentLocation.lat
-                ],
-                zoom: 13,
-                duration: 3000, // Smoother transition
-                essential: true,
-                easing: (t) => {
-                    // Custom easing function for smoother animation
-                    return t * (2 - t); // Ease-out quadratic
-                }
-            });
+        // Smart Pan if following
+        if (followDriverRef.current && selectedDriverRef.current?.id === driver.id) {
+            smartPanTo(driver.currentLocation.lng, driver.currentLocation.lat);
         }
     };
 
@@ -923,7 +988,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             onSuccess: () => {
                 console.log('Driver data refreshed');
                 // Update driver on map with refreshed data
-                const updatedDriver = transformedDrivers.find(d => d.id === driver.id);
+                const updatedDriver = driverList.find(d => d.id === driver.id);
                 if (updatedDriver) {
                     updateDriverPosition(updatedDriver);
                 }
@@ -951,7 +1016,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                     selectedDriver.currentLocation.lng,
                     selectedDriver.currentLocation.lat
                 ],
-                zoom: 15, // Closer zoom when following
+                zoom: 18, // Closer zoom when following (increased for better view)
                 duration: 1500,
                 essential: true
             });

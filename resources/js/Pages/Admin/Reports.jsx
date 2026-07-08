@@ -1,17 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { router } from '@inertiajs/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Icon components
 const ChartBarIcon = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-    </svg>
-);
-
-const DocumentTextIcon = ({ className }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
 
@@ -46,9 +42,9 @@ const DownloadIcon = ({ className }) => (
     </svg>
 );
 
-const FilterIcon = ({ className }) => (
+const PdfIcon = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
 
@@ -59,7 +55,6 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
             const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
             return urlParams.get('dateRange') || 'today';
         } catch (error) {
-            console.error('Error parsing URL:', error);
             return 'today';
         }
     };
@@ -67,24 +62,26 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
     const [activeTab, setActiveTab] = useState('deliveries');
     const [dateRange, setDateRange] = useState(getInitialDateRange());
     const [isLoading, setIsLoading] = useState(false);
+    
+    // We update stats locally if we refetch, otherwise we use props
     const [stats, setStats] = useState({
-        delivery: deliveryStats,
-        driver: driverStats,
-        truck: truckStats,
-        maintenance: maintenanceStats,
-        user: userStats
+        delivery: deliveryStats || {},
+        driver: driverStats || {},
+        truck: truckStats || {},
+        maintenance: maintenanceStats || {},
+        user: userStats || {}
     });
 
     const [deliveryDataState, setDeliveryDataState] = useState(deliveryData || []);
     const [maintenanceDataState, setMaintenanceDataState] = useState(maintenanceData || []);
     const [showExportModal, setShowExportModal] = useState(false);
+    const [exportFormat, setExportFormat] = useState('pdf');
 
     const fetchFilteredData = async (range) => {
         setIsLoading(true);
         try {
-            await router.get('/admin/reports', {
-                dateRange: range,
-                preserveState: false,
+            router.get('/admin/reports', { dateRange: range }, {
+                preserveState: true,
                 preserveScroll: true,
                 only: ['deliveryStats', 'driverStats', 'truckStats', 'maintenanceStats', 'userStats', 'deliveryData', 'maintenanceData'],
                 onSuccess: (page) => {
@@ -98,11 +95,14 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                     setDeliveryDataState(page.props.deliveryData || []);
                     setMaintenanceDataState(page.props.maintenanceData || []);
                     setDateRange(range);
+                    setIsLoading(false);
+                },
+                onError: () => {
+                    setIsLoading(false);
                 }
             });
         } catch (error) {
             console.error('Error fetching filtered data:', error);
-        } finally {
             setIsLoading(false);
         }
     };
@@ -112,40 +112,44 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
         fetchFilteredData(range);
     };
 
-    const handleExport = () => {
-        const data = activeTab === 'deliveries' ? deliveryDataState :
-            activeTab === 'maintenance' ? maintenanceDataState :
-                [];
-        const hasData = activeTab === 'drivers' ? true : (data && data.length > 0);
-        if (!hasData) return;
+    const handleExport = (format) => {
+        setExportFormat(format);
         setShowExportModal(true);
     };
 
     const performExport = () => {
+        if (exportFormat === 'csv') {
+            generateCSV();
+        } else {
+            generatePDF();
+        }
+        setShowExportModal(false);
+    };
+
+    const generateCSV = () => {
         const data = activeTab === 'deliveries' ? deliveryDataState :
-            activeTab === 'maintenance' ? maintenanceDataState :
-                [];
+            activeTab === 'maintenance' ? maintenanceDataState : [];
         let csvContent = '';
         let filename = '';
 
         if (activeTab === 'deliveries') {
-            csvContent = 'Waybill,Customer,Status,Pickup Address,Destination Address,Created At\n';
+            csvContent = 'Waybill,Customer,Pickup Address,Destination Address,Created At\n';
             csvContent += data.map(delivery =>
-                `"${delivery.waybill || 'DEL-' + delivery.id}","${delivery.customer || ''}","${delivery.status || ''}","${delivery.pickup_address || ''}","${delivery.destination_address || ''}","${delivery.created_at || ''}"`
+                `"${delivery.waybill || 'DEL-' + delivery.id}","${delivery.customer || ''}","${delivery.pickup_address || ''}","${delivery.destination_address || ''}","${delivery.created_at || ''}"`
             ).join('\n');
             filename = `delivery_report_${dateRange}_${new Date().toISOString().split('T')[0]}.csv`;
         } else if (activeTab === 'maintenance') {
-            csvContent = 'Report ID,Vehicle Type,Issue Type,Parts Used,Status,Report Date\n';
-            csvContent += data.map(maintenance =>
-                `"${maintenance.report_id || ''}","${maintenance.vehicle_type || ''}","${maintenance.issue_title || ''}","${maintenance.parts_used || ''}","${maintenance.status || ''}","${maintenance.report_date || ''}"`
+            csvContent = 'Report ID,Vehicle Type,Issue Type,Parts Used,Report Date\n';
+            csvContent += data.map(m =>
+                `"${m.report_id || ''}","${m.vehicle_type || ''}","${m.issue_title || ''}","${m.parts_used || ''}","${m.report_date || ''}"`
             ).join('\n');
             filename = `maintenance_report_${dateRange}_${new Date().toISOString().split('T')[0]}.csv`;
         } else if (activeTab === 'drivers') {
             csvContent = 'Metric,Value\n';
-            csvContent += `"Total Drivers","${driverStats.total || 0}"\n`;
-            csvContent += `"Active Drivers","${driverStats.active || 0}"\n`;
-            csvContent += `"Average Rating","${driverStats.averageRating || 0}"\n`;
-            csvContent += `"Total Distance","${driverStats.totalDistance || 0}"\n`;
+            csvContent += `"Total Drivers","${stats.driver.total || 0}"\n`;
+            csvContent += `"Active Drivers","${stats.driver.active || 0}"\n`;
+            csvContent += `"On Leave","${stats.driver.on_leave || 0}"\n`;
+            csvContent += `"Busy","${stats.driver.busy || 0}"\n`;
             filename = `driver_report_${dateRange}_${new Date().toISOString().split('T')[0]}.csv`;
         }
 
@@ -158,7 +162,86 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setShowExportModal(false);
+    };
+
+    const generatePDF = () => {
+        const doc = new jsPDF(activeTab === 'deliveries' ? 'landscape' : 'portrait');
+        const reportTitle = `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Report`;
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(16, 185, 129); // Emerald-500
+        doc.text("DTS Logistics Reports", 14, 22);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(reportTitle, 14, 30);
+        doc.text(`Period: ${dateRange.charAt(0).toUpperCase() + dateRange.slice(1)}`, 14, 36);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+        
+        if (activeTab === 'deliveries') {
+            const tableColumn = ["Waybill", "Customer", "Driver", "Pickup", "Destination", "Date"];
+            const tableRows = deliveryDataState.map(d => [
+                d.waybill || 'DEL-' + d.id,
+                d.customer || 'Unknown',
+                d.driver || 'Unassigned',
+                d.pickup_address || 'N/A',
+                d.destination_address || 'N/A',
+                d.created_at || 'N/A'
+            ]);
+
+            autoTable(doc, {
+                startY: 50,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [16, 185, 129] },
+                styles: { fontSize: 8 },
+            });
+        } else if (activeTab === 'maintenance') {
+            const tableColumn = ["Report ID", "Plate Number", "Vehicle Type", "Issue", "Date"];
+            const tableRows = maintenanceDataState.map(m => [
+                m.report_id || 'N/A',
+                m.truck_plate || 'Unknown',
+                m.vehicle_type || 'Unknown',
+                m.issue_title || 'N/A',
+                m.report_date || 'N/A'
+            ]);
+
+            autoTable(doc, {
+                startY: 50,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [16, 185, 129] },
+            });
+        } else if (activeTab === 'drivers') {
+            const tableColumn = ["Metric", "Value"];
+            const tableRows = [
+                ["Total Drivers", stats.driver.total || "0"],
+                ["Active Drivers", stats.driver.active || "0"],
+                ["On Leave", stats.driver.on_leave || "0"],
+                ["Busy", stats.driver.busy || "0"]
+            ];
+
+            autoTable(doc, {
+                startY: 50,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [16, 185, 129] },
+            });
+        }
+
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, {align: 'center'});
+        }
+
+        doc.save(`${activeTab}_report_${dateRange}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const tabs = [
@@ -176,6 +259,30 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
 
     const renderDeliveryReports = () => (
         <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { label: 'Total Deliveries', value: stats.delivery?.total || 0, icon: TruckIcon, bg: 'bg-slate-900', iconColor: 'text-white' },
+                    { label: 'Completed', value: stats.delivery?.completed || 0, icon: ChartBarIcon, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                    { label: 'In Transit', value: stats.delivery?.in_transit || 0, icon: TruckIcon, bg: 'bg-blue-50', iconColor: 'text-blue-600' },
+                    { label: 'Pending', value: stats.delivery?.pending || 0, icon: ChartBarIcon, bg: 'bg-amber-50', iconColor: 'text-amber-600' }
+                ].map((item, idx) => {
+                    const Icon = item.icon;
+                    return (
+                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.label}</p>
+                                    <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
+                                </div>
+                                <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
+                                    <Icon className={`w-5 h-5 ${item.iconColor}`} />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
             <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
                 <div className="p-5 border-b border-slate-100 bg-slate-50/50">
                     <h3 className="text-sm font-bold text-slate-900">Delivery Details Log</h3>
@@ -184,47 +291,38 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                     <table className="w-full">
                         <thead className="bg-slate-50/80">
                             <tr>
-                                {['Waybill', 'Customer', 'Status', 'Pickup', 'Destination', 'Date', 'Actions'].map((h) => (
+                                {['Waybill', 'Customer', 'Driver', 'Pickup', 'Destination', 'Date'].map((h) => (
                                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-100">
-                            {deliveryDataState && deliveryDataState.length > 0 ? (
+                            {deliveryDataState.length > 0 ? (
                                 deliveryDataState.map((delivery) => (
-                                    <tr key={delivery.id} className="hover:bg-slate-50/80 transition-colors">
+                                    <tr key={delivery.id} className="hover:bg-slate-50/80">
                                         <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">
                                             {delivery.waybill || 'DEL-' + delivery.id}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-slate-800">
                                             {delivery.customer}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <span className={`px-2 py-0.5 inline-flex text-[10px] leading-5 font-bold uppercase tracking-wider rounded-md ${delivery.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
-                                                    delivery.status === 'in_transit' ? 'bg-blue-50 text-blue-700 border border-blue-200/30' :
-                                                        delivery.status === 'assigned' ? 'bg-amber-50 text-amber-700 border border-amber-200/30' :
-                                                            'bg-slate-50 text-slate-600 border border-slate-200/30'
-                                                }`}>
-                                                {delivery.status?.replace('_', ' ')}
-                                            </span>
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-700">
+                                            {delivery.driver}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 max-w-xs truncate">
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-700 max-w-[150px] truncate" title={delivery.pickup_address}>
                                             {delivery.pickup_address || 'N/A'}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 max-w-xs truncate">
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-700 max-w-[150px] truncate" title={delivery.destination_address}>
                                             {delivery.destination_address || 'N/A'}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400 font-medium">
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
                                             {delivery.created_at}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs">
-                                            <button className="text-[#10B981] hover:text-[#059669] font-bold">View</button>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="px-4 py-8 text-center text-xs text-slate-400">
+                                    <td colSpan="6" className="px-4 py-8 text-center text-xs text-slate-400">
                                         No delivery records for the selected period
                                     </td>
                                 </tr>
@@ -240,82 +338,63 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
         <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Logs', value: stats.maintenance.total, icon: WrenchIcon, bg: 'bg-slate-900', iconColor: 'text-white' },
-                    { label: 'Completed', value: stats.maintenance.completed, icon: ChartBarIcon, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
-                    { label: 'In Progress', value: stats.maintenance.in_progress, icon: CalendarIcon, bg: 'bg-blue-50', iconColor: 'text-blue-600' },
-                    { label: 'Pending Request', value: stats.maintenance.pending, icon: ChartBarIcon, bg: 'bg-amber-50', iconColor: 'text-amber-600' }
-                ].map((item, idx) => {
-                    const Icon = item.icon;
-                    return (
-                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.label}</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
-                                </div>
-                                <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
-                                    <Icon className={`w-5 h-5 ${item.iconColor}`} />
-                                </div>
+                    { label: 'Total Logs', value: stats.maintenance?.total || 0, icon: WrenchIcon, bg: 'bg-slate-900', iconColor: 'text-white' },
+                    { label: 'Completed', value: stats.maintenance?.completed || 0, icon: ChartBarIcon, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                    { label: 'In Progress', value: stats.maintenance?.in_progress || 0, icon: CalendarIcon, bg: 'bg-blue-50', iconColor: 'text-blue-600' },
+                    { label: 'Pending', value: stats.maintenance?.pending || 0, icon: ChartBarIcon, bg: 'bg-amber-50', iconColor: 'text-amber-600' }
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.label}</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
+                            </div>
+                            <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
+                                <item.icon className={`w-5 h-5 ${item.iconColor}`} />
                             </div>
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
                 <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-sm font-bold text-slate-900">Maintenance Request Log</h3>
+                    <h3 className="text-sm font-bold text-slate-900">Maintenance Logs</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-slate-50/80">
                             <tr>
-                                {['Report ID', 'Unique ID', 'Vehicle Type', 'Issue Type', 'Parts Used', 'Status', 'Report Date', 'Actions'].map((h) => (
+                                {['Report ID', 'Plate', 'Vehicle Type', 'Issue', 'Date'].map((h) => (
                                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-100">
-                            {maintenanceDataState && maintenanceDataState.length > 0 ? (
+                            {maintenanceDataState.length > 0 ? (
                                 maintenanceDataState.map((m) => (
-                                    <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
+                                    <tr key={m.id} className="hover:bg-slate-50/80">
                                         <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">
                                             {m.report_id}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800 font-semibold">
-                                            <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
-                                                {m.unique_id || 'N/A'}
-                                            </span>
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800 font-mono">
+                                            {m.truck_plate}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800 font-semibold">
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800">
                                             {m.vehicle_type}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800">
                                             {m.issue_title}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 max-w-xs truncate">
-                                            {m.parts_used}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                            <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase tracking-wider rounded-md ${m.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
-                                                    m.status === 'in_progress' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200/30' :
-                                                        'bg-blue-50 text-blue-700 border border-blue-200/30'
-                                                }`}>
-                                                {m.status?.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400 font-medium">
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
                                             {m.report_date}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-xs">
-                                            <button className="text-[#10B981] hover:text-[#059669] font-bold">Details</button>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="px-4 py-8 text-center text-xs text-slate-400">
-                                        No maintenance logs for the selected period
+                                    <td colSpan="6" className="px-4 py-8 text-center text-xs text-slate-400">
+                                        No maintenance logs found
                                     </td>
                                 </tr>
                             )}
@@ -330,86 +409,41 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
         <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Drivers', value: driverStats.total, icon: UserGroupIcon, bg: 'bg-slate-900', iconColor: 'text-white' },
-                    { label: 'Active Roster', value: driverStats.active, icon: ChartBarIcon, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
-                    { label: 'Average Rating', value: driverStats.averageRating, icon: ChartBarIcon, bg: 'bg-amber-50', iconColor: 'text-amber-600' },
-                    { label: 'Total Distance', value: driverStats.totalDistance, icon: TruckIcon, bg: 'bg-blue-50', iconColor: 'text-blue-600' }
-                ].map((item, idx) => {
-                    const Icon = item.icon;
-                    return (
-                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.label}</p>
-                                    <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
-                                </div>
-                                <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
-                                    <Icon className={`w-5 h-5 ${item.iconColor}`} />
-                                </div>
+                    { label: 'Total Drivers', value: stats.driver?.total || 0, icon: UserGroupIcon, bg: 'bg-slate-900', iconColor: 'text-white' },
+                    { label: 'Active', value: stats.driver?.active || 0, icon: ChartBarIcon, bg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                    { label: 'Busy / Transit', value: (stats.driver?.busy || 0) + (stats.driver?.in_transit || 0), icon: TruckIcon, bg: 'bg-blue-50', iconColor: 'text-blue-600' },
+                    { label: 'On Leave', value: stats.driver?.on_leave || 0, icon: CalendarIcon, bg: 'bg-amber-50', iconColor: 'text-amber-600' }
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">{item.label}</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-1">{item.value}</p>
+                            </div>
+                            <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
+                                <item.icon className={`w-5 h-5 ${item.iconColor}`} />
                             </div>
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
-
+            
             <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-sm font-bold text-slate-900">Operator Standings</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-slate-50/80">
-                            <tr>
-                                {['Driver ID', 'Name', 'License ID', 'Availability', 'Current Vehicle', 'Total Jobs', 'Actions'].map((h) => (
-                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-100">
-                            {[1, 2, 3, 4, 5].map((item) => (
-                                <tr key={item} className="hover:bg-slate-50/80 transition-colors">
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">DRV-{String(item).padStart(4, '0')}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-slate-800">John Driver {item}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 font-mono">DL-{2020 + item}-{1000 * item}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">
-                                        <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase tracking-wider rounded-md ${item <= 3 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/30' :
-                                                item === 4 ? 'bg-amber-50 text-amber-700 border border-amber-200/30' :
-                                                    'bg-rose-50 text-rose-700 border border-rose-200/30'
-                                            }`}>
-                                            {item <= 3 ? 'Available' : item === 4 ? 'On Leave' : 'Busy'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-800 font-medium">
-                                        {item <= 3 ? `TRK-${100 + item}` : item === 4 ? 'None' : 'TRK-105'}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600 font-bold">{50 * item}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-xs">
-                                        <button className="text-[#10B981] hover:text-[#059669] font-bold">Details</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="p-10 flex flex-col items-center justify-center text-center">
+                    <UserGroupIcon className="w-16 h-16 text-slate-200 mb-4" />
+                    <h3 className="text-lg font-bold text-slate-900">Driver Performance Data</h3>
+                    <p className="text-sm text-slate-500 mt-2 max-w-md">Driver specific tabular data is aggregated in the export files. Click Generate PDF above to download the full roster report.</p>
                 </div>
             </div>
         </div>
     );
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'deliveries': return renderDeliveryReports();
-            case 'maintenance': return renderMaintenanceReports();
-            case 'drivers': return renderDriverReports();
-            default: return renderDeliveryReports();
-        }
-    };
 
     return (
         <AdminLayout title="Operational Reports" authUser={authUser}>
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Operations Reports</h1>
-                    <p className="text-slate-500 mt-0.5 text-sm">Review real-time metrics, generate logistics spreadsheets, and print dispatch audits</p>
+                    <p className="text-slate-500 mt-0.5 text-sm">Review metrics and generate PDF/CSV exports for deliveries, maintenance, and personnel.</p>
                 </div>
 
                 {/* Filters Bar */}
@@ -420,7 +454,7 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                             <select
                                 value={dateRange}
                                 onChange={(e) => handleDateRangeChange(e.target.value)}
-                                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs hover:border-slate-300 focus:border-[#10B981] focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none font-medium text-slate-700"
+                                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 outline-none hover:border-slate-300 focus:border-[#10B981] transition-colors"
                                 disabled={isLoading}
                             >
                                 {dateRanges.map(range => (
@@ -430,54 +464,56 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                                <FilterIcon className="w-3.5 h-3.5 text-slate-500" />
-                                <span>Refine Options</span>
-                            </button>
                             <button
-                                onClick={handleExport}
-                                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-lg shadow-md shadow-emerald-500/10 hover:shadow-lg transition-all"
+                                onClick={() => handleExport('csv')}
+                                className="flex items-center gap-1.5 px-4 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg transition-all shadow-sm"
                             >
                                 <DownloadIcon className="w-3.5 h-3.5" />
-                                <span>Export Sheet</span>
+                                <span>Export CSV</span>
+                            </button>
+                            <button
+                                onClick={() => handleExport('pdf')}
+                                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-lg shadow-md shadow-emerald-500/10 transition-all"
+                            >
+                                <PdfIcon className="w-3.5 h-3.5" />
+                                <span>Generate PDF</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
+                {/* Tabs */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
                     <div className="border-b border-slate-100 bg-slate-50/20">
                         <nav className="flex">
-                            {tabs.map(tab => {
-                                const Icon = tab.icon;
-                                const isCurrent = activeTab === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-xs transition-all duration-200 ${isCurrent
-                                                ? 'border-[#10B981] text-[#10B981] bg-emerald-50/10'
-                                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                            }`}
-                                    >
-                                        <Icon className="w-4 h-4" />
-                                        <span>{tab.name}</span>
-                                    </button>
-                                );
-                            })}
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-xs transition-all ${
+                                        activeTab === tab.id
+                                            ? 'border-[#10B981] text-[#10B981] bg-emerald-50/10'
+                                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    <tab.icon className="w-4 h-4" />
+                                    <span>{tab.name}</span>
+                                </button>
+                            ))}
                         </nav>
                     </div>
                 </div>
 
-                {/* Content Area */}
+                {/* Content */}
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-[#10B981]"></div>
-                        <span className="ml-2.5 text-xs font-bold text-slate-500">Retrieving operational data...</span>
+                        <span className="ml-2.5 text-xs font-bold text-slate-500">Loading data...</span>
                     </div>
                 ) : (
-                    renderContent()
+                    activeTab === 'deliveries' ? renderDeliveryReports() :
+                    activeTab === 'maintenance' ? renderMaintenanceReports() :
+                    renderDriverReports()
                 )}
 
                 {/* Export Modal */}
@@ -486,13 +522,13 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
                         <div className="relative bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 border border-slate-100">
                             <div className="flex items-start">
-                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
-                                    <DownloadIcon className="w-5 h-5 text-[#10B981]" />
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-4 flex-shrink-0 ${exportFormat === 'pdf' ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-[#10B981]'}`}>
+                                    {exportFormat === 'pdf' ? <PdfIcon className="w-5 h-5" /> : <DownloadIcon className="w-5 h-5" />}
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-slate-900">Download CSV Document</h3>
+                                    <h3 className="text-base font-bold text-slate-900">Generate {exportFormat.toUpperCase()} Document</h3>
                                     <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                                        Are you sure you want to download the active {activeTab} sheet logs representing {dateRanges.find(r => r.id === dateRange)?.name || dateRange} stats?
+                                        Are you sure you want to generate a {exportFormat.toUpperCase()} report for {activeTab} ({dateRanges.find(r => r.id === dateRange)?.name})?
                                     </p>
                                 </div>
                             </div>
@@ -506,9 +542,9 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
                                 </button>
                                 <button
                                     onClick={performExport}
-                                    className="px-4 py-2 text-xs font-bold text-white bg-[#10B981] hover:bg-[#059669] rounded-lg transition-colors"
+                                    className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors ${exportFormat === 'pdf' ? 'bg-red-500 hover:bg-red-600' : 'bg-[#10B981] hover:bg-[#059669]'}`}
                                 >
-                                    Confirm and Export
+                                    Generate {exportFormat.toUpperCase()}
                                 </button>
                             </div>
                         </div>

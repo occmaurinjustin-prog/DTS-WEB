@@ -384,6 +384,7 @@ class AdminDashboardController extends Controller
 
         // Get real delivery data for reports
         $deliveryData = Delivery::with(['client', 'driver.user'])
+            ->where('delivery_status', 'delivered')
             ->where(function($query) use ($dateFilter) {
                 if ($dateFilter) {
                     $query->where('created_at', '>=', $dateFilter);
@@ -401,12 +402,13 @@ class AdminDashboardController extends Controller
                     'destination_address' => $delivery->delivery_address,
                     'created_at' => $delivery->created_at->format('Y-m-d'),
                     'weight' => $delivery->weight_tons,
-                    'driver' => $delivery->driver ? $delivery->driver->user->name : 'Unassigned',
+                    'driver' => $delivery->driver && $delivery->driver->user ? $delivery->driver->user->firstname . ' ' . $delivery->driver->user->lastname : 'Unassigned',
                 ];
             });
 
         // Get real maintenance data for reports
         $maintenanceData = \App\Models\MaintenanceReport::with(['maintenance'])
+            ->where('status', 'completed')
             ->where(function($query) use ($dateFilter) {
                 if ($dateFilter) {
                     $query->where('created_at', '>=', $dateFilter);

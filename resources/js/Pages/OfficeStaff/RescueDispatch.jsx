@@ -300,9 +300,9 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                 
                                 {rescue.media && rescue.media.length > 0 && (
                                     <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-                                        {rescue.media.map(media => (
+                                        {rescue.media.map((media, index) => (
                                             <a 
-                                                key={media.id} 
+                                                key={media.media_id || index} 
                                                 href={`/storage/${media.file_path}`} 
                                                 target="_blank" 
                                                 rel="noreferrer"

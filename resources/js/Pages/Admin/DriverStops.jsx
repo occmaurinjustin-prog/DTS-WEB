@@ -45,17 +45,24 @@ export default function DriverStops({ authUser }) {
         placeholderData: (previousData) => previousData,
     });
 
+    const parseLocalDate = (dateString) => {
+        if (!dateString) return null;
+        return new Date(dateString);
+    };
+
     const formatDuration = (minutes) => {
         if (!minutes && minutes !== 0) return 'Ongoing';
-        if (minutes < 60) return `${minutes}m`;
-        const h = Math.floor(minutes / 60);
-        const m = minutes % 60;
+        const mins = Math.round(minutes);
+        if (mins < 60) return `${mins}m`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
         return m > 0 ? `${h}h ${m}m` : `${h}h`;
     };
 
     const formatLiveDuration = (stoppedAt) => {
         if (!stoppedAt) return 'Ongoing';
-        const diffMs = Math.max(0, currentTime.getTime() - new Date(stoppedAt).getTime());
+        const stopDate = parseLocalDate(stoppedAt);
+        const diffMs = Math.max(0, currentTime.getTime() - stopDate.getTime());
         const totalSeconds = Math.floor(diffMs / 1000);
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
@@ -67,7 +74,7 @@ export default function DriverStops({ authUser }) {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Ongoing';
-        const date = new Date(dateString);
+        const date = parseLocalDate(dateString);
         return date.toLocaleString('en-US', {
             month: 'short', day: 'numeric',
             hour: 'numeric', minute: '2-digit', hour12: true
