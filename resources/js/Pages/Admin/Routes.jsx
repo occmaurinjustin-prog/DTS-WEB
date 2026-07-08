@@ -87,6 +87,12 @@ const PlayCircleIcon = ({ className }) => (
     </svg>
 );
 
+const CubeIcon = ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7.523l-7.54 3.96M12.46 21V11.483M12.46 11.483L4 7.523M12.46 11.483l7.54-3.96M12.46 3.523l-7.54 3.96M12.46 3.523l7.54 3.96" />
+    </svg>
+);
+
 // Set Mapbox access token from environment variable
 if (mapboxgl) {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -98,6 +104,8 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const [mapLoaded, setMapLoaded] = useState(false);
     const [followDriver, setFollowDriver] = useState(false);
     const [viewAllDrivers, setViewAllDrivers] = useState(true);
+    const [is3DView, setIs3DView] = useState(false);
+    const is3DViewRef = useRef(false);
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markers = useRef({});
@@ -646,8 +654,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 driver.currentLocation.lng,
                 driver.currentLocation.lat
             ],
-            zoom: 13,
-            duration: 1000
+            zoom: 16.5,
+            pitch: 0,
+            duration: 1500
         });
     };
 
@@ -968,7 +977,30 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
         // Smart Pan if following
         if (followDriverRef.current && selectedDriverRef.current?.id === driver.id) {
-            smartPanTo(driver.currentLocation.lng, driver.currentLocation.lat);
+            if (is3DViewRef.current) {
+                // Calculate bearing for auto-rotation
+                let bearing = map.current.getBearing();
+                if (startLngLat[0] !== endLngLat[0] || startLngLat[1] !== endLngLat[1]) {
+                    const toRad = (deg) => (deg * Math.PI) / 180;
+                    const toDeg = (rad) => (rad * 180) / Math.PI;
+                    const lat1 = toRad(startLngLat[1]);
+                    const lat2 = toRad(endLngLat[1]);
+                    const dLng = toRad(endLngLat[0] - startLngLat[0]);
+                    const y = Math.sin(dLng) * Math.cos(lat2);
+                    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+                    bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
+                }
+
+                map.current.easeTo({
+                    center: [driver.currentLocation.lng, driver.currentLocation.lat],
+                    bearing: bearing,
+                    pitch: 65,
+                    duration: 1000,
+                    easing: (t) => t
+                });
+            } else {
+                smartPanTo(driver.currentLocation.lng, driver.currentLocation.lat);
+            }
         }
     };
 
@@ -976,9 +1008,22 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
     const handleDriverSelect = async (driver) => {
         setSelectedDriver(driver);
         setViewAllDrivers(false);
+        
+        // Auto-enable follow driver
+        setFollowDriver(true);
 
         // Show driver on map immediately with smooth animation
         showDriverOnMap(driver);
+        
+        if (map.current) {
+            map.current.flyTo({
+                center: [driver.currentLocation.lng, driver.currentLocation.lat],
+                zoom: 18,
+                pitch: is3DViewRef.current ? 65 : 0,
+                duration: 1500,
+                essential: true
+            });
+        }
 
         // Refresh driver data to get latest status (in background)
         router.reload({ 
@@ -1017,6 +1062,7 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                     selectedDriver.currentLocation.lat
                 ],
                 zoom: 18, // Closer zoom when following (increased for better view)
+                pitch: is3DView ? 65 : 0,
                 duration: 1500,
                 essential: true
             });
@@ -1072,9 +1118,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         <AdminLayout title="Live Routes" authUser={authUser} activeMenu="routes">
             <div className="w-full h-screen flex overflow-hidden bg-gray-50">
                 {/* LEFT PANEL - Driver List */}
-                <div className="w-[380px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
+                <div className="w-[350px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
                     {/* Header */}
-                    <div className="p-5 border-b border-slate-200 bg-slate-50/50">
+                    <div className="p-4 border-b border-slate-200 bg-slate-50/50">
                         <div className="mb-4">
                             <h1 className="text-xl font-bold text-slate-955 flex items-center gap-2">
                                 <NavigationIcon className="w-5.5 h-5.5 text-blue-600 animate-pulse" />
@@ -1158,9 +1204,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 <div className="flex-1 relative">
                     {/* Map Container */}
                     <div
-    ref={mapContainer}
-    className="absolute inset-4 w-[calc(104%-2rem)] h-[calc(95%-2rem)] rounded-l-2xl overflow-hidden"
-/>
+                        ref={mapContainer}
+                        className="absolute inset-0 w-full h-full bg-slate-100"
+                    />
                     
                     {/* Loading indicator */}
                     {!mapLoaded && (
@@ -1198,153 +1244,32 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                                 {followDriver ? 'Following' : 'Follow Driver'}
                             </button>
                         )}
+                        <button
+                            onClick={() => {
+                                const nextState = !is3DView;
+                                setIs3DView(nextState);
+                                is3DViewRef.current = nextState;
+                                if (map.current) {
+                                    map.current.easeTo({
+                                        pitch: nextState ? 65 : 0,
+                                        duration: 1000
+                                    });
+                                }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+                                is3DView
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                            <CubeIcon className="w-4 h-4" />
+                            {is3DView ? '2D View' : '3D View'}
+                        </button>
                     </div>
 
-                    {/* Legend */}
-                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-lg rounded-lg shadow-lg p-3">
-                        <h4 className="text-xs font-semibold text-gray-700 mb-2">Legend</h4>
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                                <span>Driver</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span>Pickup</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                <span>Destination</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-8 h-0.5 bg-blue-500"></div>
-                                <span>Route</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Compact Floating Driver Info Card */}
-{selectedDriver && (
-    <div className="absolute top-4 right-4 w-[300px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn z-50">
 
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 px-4 py-4 text-white">
 
-            {/* Close Button */}
-            <button
-                onClick={() => setSelectedDriver(null)}
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all"
-            >
-                <XMarkIcon className="w-4 h-4 text-white" />
-            </button>
-
-            <div className="flex items-center gap-3">
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
-                    <TruckIcon className="w-5 h-5 text-white" />
-                </div>
-
-                <div className="flex-1 pr-8">
-                    <h3 className="text-base font-bold leading-tight">
-                        {selectedDriver.name}
-                    </h3>
-
-                    <div className="flex items-center gap-2 mt-1 text-blue-100 text-xs">
-                        <span>{selectedDriver.plateNumber}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Status */}
-            <div className="mt-3">
-                {getStatusBadge(selectedDriver.status)}
-            </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-4 space-y-4">
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2">
-
-                <div className="bg-blue-50 rounded-xl p-2 border border-blue-100">
-                    <p className="text-[10px] text-blue-600 font-medium mb-1">
-                        ETA
-                    </p>
-                    <p className="text-xs font-bold text-gray-900">
-                        {selectedDriver.eta}
-                    </p>
-                </div>
-
-                <div className="bg-purple-50 rounded-xl p-2 border border-purple-100">
-                    <p className="text-[10px] text-purple-600 font-medium mb-1">
-                        Distance
-                    </p>
-                    <p className="text-xs font-bold text-gray-900">
-                        {selectedDriver.distance}
-                    </p>
-                </div>
-
-                <div className="bg-green-50 rounded-xl p-2 border border-green-100">
-                    <p className="text-[10px] text-green-600 font-medium mb-1">
-                        Cargo
-                    </p>
-                    <p className="text-xs font-bold text-gray-900 truncate">
-                        {selectedDriver.cargoWeight}
-                    </p>
-                </div>
-            </div>
-
-            {/* Locations */}
-            <div className="space-y-3">
-
-                {/* Pickup */}
-                <div className="flex gap-2">
-                    <div className="mt-1 w-3 h-3 rounded-full bg-green-500"></div>
-
-                    <div className="flex-1">
-                        <p className="text-[10px] uppercase font-semibold text-green-600 mb-1">
-                            Pickup
-                        </p>
-
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                            {selectedDriver.pickup.address}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Destination */}
-                <div className="flex gap-2">
-                    <div className="mt-1 w-3 h-3 rounded-full bg-red-500"></div>
-
-                    <div className="flex-1">
-                        <p className="text-[10px] uppercase font-semibold text-red-600 mb-1">
-                            Destination
-                        </p>
-
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                            {selectedDriver.destination.address}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-1">
-
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold transition-all">
-                    View Route
-                </button>
-
-                <button className="w-11 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all">
-                    <PhoneIcon className="w-4 h-4 text-gray-700" />
-                </button>
-
-            </div>
-        </div>
-    </div>
-
-                        )}
                 </div>
             </div>
         </AdminLayout>

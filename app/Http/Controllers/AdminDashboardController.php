@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminDashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         // Get today's date for filtering
         $today = now()->startOfDay();
@@ -47,19 +47,129 @@ class AdminDashboardController extends Controller
         // Merge maintenance stats with main stats
         $stats = array_merge($stats, $maintenanceStats);
 
-        $recentDeliveries = Delivery::with(['client', 'driver.user'])
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
-
         $recentInquiries = collect(); // Inquiries table deleted
 
         $users = User::orderBy('created_at', 'desc')->get();
 
+        // Get initial notifications (pending deliveries)
+        $initialNotifications = Delivery::with('client')
+            ->where('delivery_status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($delivery) {
+                return [
+                    'id' => $delivery->delivery_id,
+                    'waybill' => $delivery->waybill,
+                    'client_name' => $delivery->client ? $delivery->client->client_name : 'Unknown Client',
+                    'status' => $delivery->delivery_status,
+                    'created_at' => $delivery->created_at->toIso8601String(),
+                ];
+            });
+
+        // ==================== FLEET WEEKLY TRIP MONITORING ====================
+        $selectedYear = $request->input('year', date('Y'));
+        $selectedMonth = $request->input('month', date('n'));
+        
+        $monthStart = \Carbon\Carbon::createFromDate($selectedYear, $selectedMonth, 1)->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $daysInMonth = $monthStart->daysInMonth;
+
+        // Generate dynamic weeks
+        $weeks = [];
+        $currentDay = 1;
+        $weekIndex = 1;
+        
+        while ($currentDay <= $daysInMonth) {
+            $endDay = min($currentDay + 6, $daysInMonth);
+            
+            // Format labels like "Jun 1-7" or "Jun 29-Jul 5" (if it spans next month, though here it stops at end of month)
+            $startLabel = $monthStart->copy()->day($currentDay)->format('M j');
+            $endLabel = $monthStart->copy()->day($endDay)->format('M j');
+            
+            $weeks[] = [
+                'week' => $weekIndex,
+                'label' => $startLabel === $endLabel ? $startLabel : "{$startLabel}-{$endLabel}",
+                'start_day' => $currentDay,
+                'end_day' => $endDay
+            ];
+            
+            $currentDay += 7;
+            $weekIndex++;
+        }
+
+        // Fetch all trucks
+        $trucks = \App\Models\Truck::all();
+
+        // Fetch all-time completed deliveries per truck
+        $allTimeTrips = Delivery::whereNotNull('truck_id')
+            ->where('delivery_status', 'delivered')
+            ->selectRaw('truck_id, count(*) as count')
+            ->groupBy('truck_id')
+            ->pluck('count', 'truck_id');
+
+        // Fetch all completed deliveries in the selected month
+        $completedDeliveries = Delivery::whereNotNull('truck_id')
+            ->where('delivery_status', 'delivered')
+            ->whereBetween('delivered_at', [$monthStart, $monthEnd])
+            ->get();
+
+        // Initialize truck data structure
+        $trucksData = [];
+        foreach ($trucks as $truck) {
+            $trucksData[$truck->truck_id] = [
+                'truck_id' => $truck->truck_id,
+                'plate_number' => $truck->plate_number,
+                'weeks' => array_fill(1, count($weeks), 0), // Init all weeks with 0
+                'total_trips' => $allTimeTrips[$truck->truck_id] ?? 0, // All-time total trips
+                'monthly_trips' => 0 // Trips this month
+            ];
+        }
+
+        // Group deliveries by truck and week
+        foreach ($completedDeliveries as $delivery) {
+            $dayOfMonth = \Carbon\Carbon::parse($delivery->delivered_at)->day;
+            
+            // Determine which week this day falls into
+            $weekNumber = (int) ceil($dayOfMonth / 7);
+            
+            if (isset($trucksData[$delivery->truck_id])) {
+                $trucksData[$delivery->truck_id]['weeks'][$weekNumber]++;
+                $trucksData[$delivery->truck_id]['monthly_trips']++;
+            }
+        }
+
+        $highestPerformingTruck = null;
+        $maxTrips = 0;
+        
+        foreach ($trucksData as $tData) {
+            if ($tData['monthly_trips'] > $maxTrips) {
+                $maxTrips = $tData['monthly_trips'];
+                $highestPerformingTruck = $tData['plate_number'];
+            }
+        }
+
+        $totalFleetTripsThisMonth = array_sum(array_column($trucksData, 'monthly_trips'));
+        $avgTripsThisMonth = count($trucks) > 0 ? round($totalFleetTripsThisMonth / count($trucks), 1) : 0;
+
+        $fleetPerformance = [
+            'year' => $selectedYear,
+            'month' => $selectedMonth,
+            'month_name' => $monthStart->format('F'),
+            'weeks_headers' => $weeks,
+            'trucks' => array_values($trucksData),
+            'summary' => [
+                'total_trucks' => count($trucks),
+                'total_trips' => $totalFleetTripsThisMonth,
+                'highest_performing_truck' => $highestPerformingTruck ?? 'N/A',
+                'average_trips' => $avgTripsThisMonth
+            ]
+        ];
+
         return inertia('Admin/Dashboard', [
             'stats' => $stats,
-            'recentDeliveries' => $recentDeliveries,
             'recentInquiries' => $recentInquiries,
+            'initialNotifications' => $initialNotifications,
+            'fleetPerformance' => $fleetPerformance,
             'authUser' => Auth::user(),
         ]);
     }
@@ -294,7 +404,7 @@ class AdminDashboardController extends Controller
                     'driver' => $driver->user?->firstname . ' ' . $driver->user?->lastname ?? 'Unknown',
                     'phone' => $driver->user?->contact_number ?? 'N/A',
                     'speed' => $driver->current_speed ?? 0,
-                    'status' => $driver->current_speed > 0 ? 'moving' : ($driver->current_speed === 0 ? 'stopped' : 'offline'),
+                    'status' => $driver->current_speed > 5 ? 'moving' : ($driver->current_speed !== null ? 'stopped' : 'offline'),
                     'lastUpdate' => $driver->last_location_update ? \Carbon\Carbon::parse($driver->last_location_update)->diffForHumans() : 'Never',
                     'lat' => (float) $driver->current_latitude,
                     'lng' => (float) $driver->current_longitude,

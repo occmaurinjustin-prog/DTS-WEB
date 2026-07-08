@@ -188,6 +188,8 @@ class DeliveryController extends Controller
             'driver_id' => $validated['driver_id'],
         ]);
 
+        event(new \App\Events\DeliveryCreated($delivery->delivery_id));
+
         return response()->json([
             'success' => true,
             'message' => 'Delivery created',

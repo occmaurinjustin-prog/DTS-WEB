@@ -280,7 +280,7 @@ class DriverController extends Controller
                 'recorded_at'  => $validated['recorded_at'] ?? now(),
             ]);
 
-            $status = $driver->current_speed > 0 ? 'moving' : 'stopped';
+            $status = $driver->current_speed > 5 ? 'moving' : 'stopped';
 
             event(new \App\Events\DriverLocationUpdated(
                 $driver->driver_id,
@@ -366,7 +366,7 @@ class DriverController extends Controller
                 $driver->last_location_update = now();
                 $driver->save();
 
-                $status = ($latest['speed'] ?? 0) > 0 ? 'moving' : 'stopped';
+                $status = ($latest['speed'] ?? 0) > 5 ? 'moving' : 'stopped';
 
                 event(new \App\Events\DriverLocationUpdated(
                     $driver->driver_id,

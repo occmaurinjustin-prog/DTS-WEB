@@ -88,6 +88,14 @@ function LogoutButton() {
                                 Cancel
                             </button>
                             <Link
+                            href="/profile"
+                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            Profile
+                        </Link>
+                        <span className="text-white/10 mx-2">|</span>
+                        <Link
                                 href="/logout"
                                 method="post"
                                 as="button"
@@ -181,7 +189,15 @@ function Sidebar({ activeMenu, authUser }) {
                         <LogoutButton />
                     </div>
                     
-                    <div className="border-t border-slate-700/50 pt-2 flex justify-center">
+                    <div className="border-t border-slate-700/50 pt-2 flex justify-center items-center gap-4">
+                        <Link
+                            href="/profile"
+                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            Profile Settings
+                        </Link>
+                        <span className="text-white/10">|</span>
                         <Link
                             href="/force-change-password"
                             className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"

@@ -39,7 +39,7 @@ class AdminLoginController extends Controller
         }
 
         // Check if user has valid role
-        if (!in_array($user->role, ['admin', 'office_staff', 'operation_manager'])) {
+        if (!in_array($user->role, ['admin', 'operation_manager', 'office_staff', 'mechanic', 'driver', 'purchaser', 'billing'])) {
             throw ValidationException::withMessages([
                 'username' => ['Access denied. Invalid user role. Current role: ' . $user->role],
             ]);
@@ -60,6 +60,10 @@ class AdminLoginController extends Controller
             return redirect()->intended(route('office_staff.dashboard'));
         } elseif ($user->role === 'operation_manager') {
             return redirect()->intended(route('operational_manager.dashboard'));
+        } elseif ($user->role === 'purchaser') {
+            return redirect()->intended(route('purchaser.dashboard'));
+        } elseif ($user->role === 'billing') {
+            return redirect()->intended(route('billing.dashboard'));
         }
 
         return redirect()->intended('/');

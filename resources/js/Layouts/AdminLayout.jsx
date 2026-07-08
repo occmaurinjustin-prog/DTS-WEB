@@ -108,7 +108,7 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
         { id: 'driverStops', name: 'Driver Stops', icon: 'tracking', href: '/admin/driver-stops' },
         { id: 'reports', name: 'Reports', icon: 'reports', href: '/admin/reports' },
         { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: notificationCount || null },
-        { id: 'settings', name: 'Settings', icon: 'settings', href: '/admin/settings' },
+        { id: 'settings', name: 'Settings', icon: 'settings', href: '/profile' },
     ];
 
     return (

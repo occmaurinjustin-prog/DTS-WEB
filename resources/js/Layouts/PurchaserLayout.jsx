@@ -6,15 +6,12 @@ import { Head, Link } from '@inertiajs/react';
 function Icon({ name, className = 'w-5 h-5' }) {
     const icons = {
         dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-        drivers: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
-        clients: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
-        deliveries: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
-        profile: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-        trucks: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
-        tracking: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z',
+        orders: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+        suppliers: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+        inventory: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
         reports: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-        notifications: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
         settings: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+        'lock-closed': 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
     };
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -109,28 +106,25 @@ function LogoutButton() {
 // Sidebar Component
 function Sidebar({ activeMenu, authUser }) {
     const menuItems = [
-        { id: 'dashboard', name: 'Dashboard', icon: 'dashboard', href: '/operational-manager/dashboard' },
-        { id: 'drivers', name: 'Driver List', icon: 'drivers', href: '/operational-manager/drivers' },
-        { id: 'clients', name: 'Clients', icon: 'clients', href: '/operational-manager/clients' },
-        { id: 'deliveries', name: 'Deliveries', icon: 'deliveries', href: '/operational-manager/deliveries' },
-        { id: 'trucks', name: 'Trucks', icon: 'trucks', href: '/operational-manager/trucks' },
-        { id: 'tracking', name: 'Tracking', icon: 'tracking', href: '/operational-manager/tracking', live: true },
-        { id: 'reports', name: 'Reports', icon: 'reports', href: '/operational-manager/reports' },
-        { id: 'notifications', name: 'Notifications', icon: 'notifications', href: '#', badge: 3 },
-        { id: 'settings', name: 'Settings', icon: 'settings', href: '/operational-manager/settings' },
+        { id: 'dashboard', name: 'Dashboard', icon: 'dashboard', href: '/purchaser/dashboard' },
+        { id: 'orders', name: 'Purchase Orders', icon: 'orders', href: '/purchaser/orders' },
+        { id: 'suppliers', name: 'Suppliers', icon: 'suppliers', href: '/purchaser/suppliers' },
+        { id: 'inventory', name: 'Inventory', icon: 'inventory', href: '/purchaser/inventory' },
+        { id: 'reports', name: 'Reports', icon: 'reports', href: '/purchaser/reports' },
+        { id: 'settings', name: 'Settings', icon: 'settings', href: '/purchaser/settings' },
     ];
 
     return (
         <div className="w-[280px] h-screen bg-slate-950/95 backdrop-blur-2xl p-6 flex flex-col fixed left-0 top-0 z-50 rounded-r-[2.5rem] border-r border-white/5 shadow-[8px_0_32px_rgba(0,0,0,0.3)]">
             {/* Logo */}
             <div className="flex items-center gap-4 mb-12 px-2 group cursor-pointer">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 transition-all duration-300 group-hover:scale-105 relative overflow-hidden">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50 transition-all duration-300 group-hover:scale-105 relative overflow-hidden">
                     <div className="absolute inset-0 bg-white/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Icon name="trucks" className="w-6 h-6 text-white relative z-10" />
+                    <Icon name="orders" className="w-6 h-6 text-white relative z-10" />
                 </div>
                 <div>
-                    <h1 className="text-white font-black text-xl leading-tight tracking-tight group-hover:text-emerald-400 transition-colors">DTS</h1>
-                    <p className="text-emerald-500/80 text-[10px] uppercase font-bold tracking-[0.2em]">Manager Portal</p>
+                    <h1 className="text-white font-black text-xl leading-tight tracking-tight group-hover:text-purple-400 transition-colors">DTS</h1>
+                    <p className="text-purple-500/80 text-[10px] uppercase font-bold tracking-[0.2em]">Purchaser Portal</p>
                 </div>
             </div>
 
@@ -144,27 +138,15 @@ function Sidebar({ activeMenu, authUser }) {
                             href={item.href}
                             className={`flex items-center gap-3.5 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
                                 isActive 
-                                    ? 'bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]' 
+                                    ? 'bg-gradient-to-r from-purple-500/15 to-purple-500/5 text-purple-400 border border-purple-500/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]' 
                                     : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 border border-transparent'
                             }`}
                         >
                             {isActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-500 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-purple-500 rounded-r-full shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
                             )}
-                            <Icon name={item.icon} className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'text-emerald-400 scale-110' : 'text-slate-500 group-hover:text-slate-300 group-hover:scale-110'}`} />
+                            <Icon name={item.icon} className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'text-purple-400 scale-110' : 'text-slate-500 group-hover:text-slate-300 group-hover:scale-110'}`} />
                             <span className={`text-sm tracking-wide ${isActive ? 'font-bold' : 'font-medium group-hover:translate-x-1 transition-transform duration-300'}`}>{item.name}</span>
-                            
-                            {item.live && (
-                                <div className="ml-auto flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                    <span className="text-emerald-400 text-[9px] font-bold tracking-wider">LIVE</span>
-                                </div>
-                            )}
-                            {item.badge && !item.live && (
-                                <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-lg shadow-sm shadow-rose-500/20">
-                                    {item.badge > 9 ? '9+' : item.badge}
-                                </span>
-                            )}
                         </Link>
                     );
                 })}
@@ -172,22 +154,22 @@ function Sidebar({ activeMenu, authUser }) {
 
             {/* Bottom Section */}
             <div className="mt-8 pt-6 border-t border-white/5 relative">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
                 <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-3 flex flex-col gap-3 backdrop-blur-md transition-colors">
                     <div className="flex items-center gap-3">
                         {authUser?.profile_image ? (
                             <img src={authUser.profile_image} alt="Profile" className="w-10 h-10 rounded-xl object-cover shadow-inner" />
                         ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-inner relative">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-inner relative">
                                 <div className="absolute inset-0 bg-white/20 rounded-xl" />
                                 <span className="text-white font-black text-sm relative z-10">
-                                    {(authUser?.username || 'M').charAt(0).toUpperCase()}
+                                    {(authUser?.username || 'P').charAt(0).toUpperCase()}
                                 </span>
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-slate-100 text-sm font-bold truncate tracking-wide">{authUser?.username || 'Manager'}</p>
-                            <p className="text-emerald-500/70 text-[10px] uppercase font-bold tracking-wider truncate">Operations Mgr</p>
+                            <p className="text-slate-100 text-sm font-bold truncate tracking-wide">{authUser?.username || 'Purchaser'}</p>
+                            <p className="text-purple-500/70 text-[10px] uppercase font-bold tracking-wider truncate">Purchaser</p>
                         </div>
                         <LogoutButton />
                     </div>
@@ -195,7 +177,7 @@ function Sidebar({ activeMenu, authUser }) {
                     <div className="border-t border-white/5 pt-2 flex justify-center items-center gap-4">
                         <Link
                             href="/profile"
-                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
+                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-purple-400 transition-colors"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                             Profile Settings
@@ -203,7 +185,7 @@ function Sidebar({ activeMenu, authUser }) {
                         <span className="text-white/10">|</span>
                         <Link
                             href="/force-change-password"
-                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
+                            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-purple-400 transition-colors"
                         >
                             <Icon name="lock-closed" className="w-3.5 h-3.5" />
                             Change Password
@@ -215,18 +197,18 @@ function Sidebar({ activeMenu, authUser }) {
     );
 }
 
-export default function OperationalManagerLayout({ children, title, authUser, activeMenu }) {
+export default function PurchaserLayout({ children, title, authUser, activeMenu }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
         <>
-            <Head title={title || 'Operational Manager Dashboard'} />
+            <Head title={title || 'Purchaser Dashboard'} />
             
-            <div className="min-h-screen bg-slate-50 flex selection:bg-emerald-500/30">
+            <div className="min-h-screen bg-slate-50 flex selection:bg-purple-500/30">
                 {/* Global Background Pattern */}
                 <div className="fixed inset-0 pointer-events-none z-0">
                     <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-slate-100 to-transparent" />
-                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-50/50 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3" />
+                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-50/50 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3" />
                 </div>
 
                 {/* Desktop Sidebar */}
@@ -252,17 +234,17 @@ export default function OperationalManagerLayout({ children, title, authUser, ac
                     {/* Header for mobile view */}
                     <header className="lg:hidden bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-5 py-4 flex items-center justify-between sticky top-0 z-30">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/20">
-                                <Icon name="trucks" className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-purple-500/20">
+                                <Icon name="orders" className="w-5 h-5 text-white" />
                             </div>
                             <div>
                                 <span className="text-slate-900 font-black text-lg tracking-tight">DTS</span>
-                                <p className="text-emerald-600 text-[9px] uppercase font-bold tracking-widest leading-none">Manager</p>
+                                <p className="text-purple-600 text-[9px] uppercase font-bold tracking-widest leading-none">Purchaser</p>
                             </div>
                         </div>
                         <button 
                             onClick={() => setMobileMenuOpen(true)}
-                            className="p-2.5 text-slate-500 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 rounded-xl transition-colors"
+                            className="p-2.5 text-slate-500 hover:text-purple-600 bg-slate-100 hover:bg-purple-50 rounded-xl transition-colors"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h8" />
@@ -297,4 +279,3 @@ export default function OperationalManagerLayout({ children, title, authUser, ac
         </>
     );
 }
-

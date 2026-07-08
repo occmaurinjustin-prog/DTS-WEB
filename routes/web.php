@@ -9,6 +9,8 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\OfficeStaffLoginController;
 use App\Http\Controllers\OfficeStaffDashboardController;
 use App\Http\Controllers\OperationalManagerDashboardController;
+use App\Http\Controllers\PurchaserDashboardController;
+use App\Http\Controllers\BillingDashboardController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\TruckController;
 use App\Http\Controllers\AttendanceController;
@@ -28,6 +30,10 @@ Route::get('/', function () {
             return redirect()->route('office_staff.dashboard');
         } elseif ($user->role === 'operation_manager') {
             return redirect()->route('operational_manager.dashboard');
+        } elseif ($user->role === 'purchaser') {
+            return redirect()->route('purchaser.dashboard');
+        } elseif ($user->role === 'billing') {
+            return redirect()->route('billing.dashboard');
         }
     }
 
@@ -114,7 +120,7 @@ Route::post('/office-staff/logout', [OfficeStaffLoginController::class, 'logout'
 Route::prefix('office-staff')->name('office_staff.')->group(function () {
     Route::middleware('office_staff')->group(function () {
         Route::get('/dashboard', [OfficeStaffDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/profile', [OfficeStaffDashboardController::class, 'profile'])->name('profile');
+        // Route::get('/profile', [OfficeStaffDashboardController::class, 'profile'])->name('profile');
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance');
         Route::post('/attendance/time-in', [AttendanceController::class, 'timeIn'])->name('attendance.time-in');
         Route::post('/attendance/time-out', [AttendanceController::class, 'timeOut'])->name('attendance.time-out');
@@ -150,7 +156,7 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         Route::get('/payroll', [\App\Http\Controllers\PayrollController::class, 'index'])->name('payroll');
         Route::post('/payroll/generate', [\App\Http\Controllers\PayrollController::class, 'generate'])->name('payroll.generate');
         Route::post('/payroll/generate-all', [\App\Http\Controllers\PayrollController::class, 'generateAll'])->name('payroll.generate_all');
-        Route::patch('/payroll/{id}/pay', [\App\Http\Controllers\PayrollController::class, 'markAsPaid'])->name('payroll.pay');
+
         // Rescue Assistance Routes
         Route::get('/rescue-dispatch', [\App\Http\Controllers\RescueDispatchController::class, 'index'])->name('rescue.dispatch');
         Route::get('/rescue-history', [\App\Http\Controllers\RescueDispatchController::class, 'history'])->name('rescue.history');
@@ -187,7 +193,7 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         Route::post('/deliveries', [OperationalManagerDashboardController::class, 'storeDelivery'])->name('deliveries.store');
         Route::get('/recent-deliveries', [OperationalManagerDashboardController::class, 'recentDeliveries'])->name('recent_deliveries');
         Route::get('/tracking', [OperationalManagerDashboardController::class, 'tracking'])->name('tracking');
-        Route::get('/profile', [OperationalManagerDashboardController::class, 'profile'])->name('profile');
+        // Route::get('/profile', [OperationalManagerDashboardController::class, 'profile'])->name('profile');
         
         // Client management routes
         Route::post('/clients', [ClientController::class, 'store'])->name('clients.store');
@@ -196,7 +202,32 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
     });
 });
 
+// Purchaser routes
+Route::prefix('purchaser')->name('purchaser.')->group(function () {
+    Route::middleware('purchaser')->group(function () {
+        Route::get('/dashboard', [PurchaserDashboardController::class, 'index'])->name('dashboard');
+    });
+});
+
+// Billing routes
+Route::prefix('billing')->name('billing.')->group(function () {
+    Route::middleware('billing')->group(function () {
+        Route::get('/dashboard', [BillingDashboardController::class, 'index'])->name('dashboard');
+        
+        // Payroll Routes
+        Route::get('/payroll', [\App\Http\Controllers\BillingPayrollController::class, 'index'])->name('payroll');
+        Route::patch('/payroll/{id}/pay', [\App\Http\Controllers\BillingPayrollController::class, 'markAsPaid'])->name('payroll.pay');
+    });
+});
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/force-change-password', [PasswordChangeController::class, 'show'])->name('password.force-change');
     Route::post('/force-change-password', [PasswordChangeController::class, 'update']);
+});
+// Shared Profile Routes for all web users
+Route::middleware(['web'])->group(function () {
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+    Route::post('/profile/information', [\App\Http\Controllers\ProfileController::class, 'updateInformation'])->name('profile.information.update');
+    Route::post('/profile/picture', [\App\Http\Controllers\ProfileController::class, 'updatePicture'])->name('profile.picture.update');
+    Route::post('/profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password.update');
 });

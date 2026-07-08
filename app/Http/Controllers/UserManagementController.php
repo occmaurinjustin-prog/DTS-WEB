@@ -29,13 +29,13 @@ class UserManagementController extends Controller
         try {
             // Validate request and prepare data
             $data = $request->validate([
-                'role' => ['required', 'string', 'in:admin,operation_manager,office_staff,driver,mechanic'],
+                'role' => ['required', 'string', 'in:admin,operation_manager,office_staff,driver,mechanic,purchaser,billing'],
                 'username' => 'required|string|max:255|unique:users,username',
                 'email' => 'required|email|max:255|unique:users,email',
                 'first_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
                 'last_name' => 'required|string|max:255',
-                'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
+                'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/|unique:users,contact_number',
                 'is_active' => 'nullable|boolean',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
@@ -179,12 +179,12 @@ class UserManagementController extends Controller
 
             $data = $request->validate([
                 'username' => 'required|string|max:255|unique:users,username,' . $user->user_id . ',user_id',
-                'role' => ['required', 'string', 'in:admin,operation_manager,office_staff,driver,mechanic'],
+                'role' => ['required', 'string', 'in:admin,operation_manager,office_staff,driver,mechanic,purchaser,billing'],
                 'is_active' => 'nullable|boolean',
                 'first_name' => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
                 'last_name' => 'required|string|max:255',
-                'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/',
+                'phone' => 'required|string|size:11|regex:/^[0-9]{11}$/|unique:users,contact_number,' . $user->user_id . ',user_id',
                 // Driver fields
                 'license_number' => 'nullable|string|max:255',
                 'truck_plate' => 'nullable|string|max:255',

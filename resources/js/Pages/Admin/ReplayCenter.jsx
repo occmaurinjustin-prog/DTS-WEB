@@ -11,6 +11,22 @@ export default function ReplayCenter({ authUser, deliveries }) {
     const marker = useRef(null);
     const animationFrame = useRef(null);
 
+    const calculateBearing = (startLat, startLng, destLat, destLng) => {
+        const toRad = (degree) => (degree * Math.PI) / 180;
+        const toDeg = (rad) => (rad * 180) / Math.PI;
+
+        const lat1 = toRad(startLat);
+        const lon1 = toRad(startLng);
+        const lat2 = toRad(destLat);
+        const lon2 = toRad(destLng);
+
+        const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+        let brng = Math.atan2(y, x);
+        
+        return (toDeg(brng) + 360) % 360;
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [pathData, setPathData] = useState([]);
@@ -143,9 +159,16 @@ export default function ReplayCenter({ authUser, deliveries }) {
         // Initialize Marker
         if (!marker.current) {
             const el = document.createElement('div');
-            el.className = 'w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg shadow-blue-500/50';
+            el.className = 'w-10 h-10 flex items-center justify-center';
+            el.innerHTML = `
+                <div class="truck-icon-inner bg-white rounded-full p-2 shadow-[0_0_15px_rgba(59,130,246,0.5)] border-2 border-blue-500 transition-transform duration-300 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="text-blue-600">
+                        <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
+                    </svg>
+                </div>
+            `;
             
-            marker.current = new mapboxgl.Marker({ element: el })
+            marker.current = new mapboxgl.Marker({ element: el, anchor: 'center' })
                 .setLngLat([Number(pathData[0].longitude), Number(pathData[0].latitude)])
                 .addTo(map.current);
         }
@@ -192,12 +215,40 @@ export default function ReplayCenter({ authUser, deliveries }) {
         if (!marker.current || pathData.length === 0 || !pathData[progressIndex]) return;
 
         const pt = pathData[progressIndex];
+        const markerEl = marker.current.getElement();
+
+        // Smooth translation using CSS transition
+        if (isPlaying) {
+            const transitionDuration = 1000 / (10 * playbackSpeed);
+            markerEl.style.transition = `transform ${transitionDuration}ms linear`;
+        } else {
+            markerEl.style.transition = 'none';
+        }
+
         marker.current.setLngLat([Number(pt.longitude), Number(pt.latitude)]);
         
-        if (isPlaying && map.current) {
-            map.current.panTo([Number(pt.longitude), Number(pt.latitude)], { duration: 200 });
+        // Handle rotation for the inner truck element
+        if (progressIndex > 0) {
+            const prevPt = pathData[progressIndex - 1];
+            // Only rotate if the points are different to avoid jumping to 0
+            if (prevPt.latitude !== pt.latitude || prevPt.longitude !== pt.longitude) {
+                const bearing = calculateBearing(
+                    Number(prevPt.latitude), Number(prevPt.longitude),
+                    Number(pt.latitude), Number(pt.longitude)
+                );
+                
+                const innerEl = markerEl.querySelector('.truck-icon-inner');
+                if (innerEl) {
+                    // SVG navigation arrow faces up (North). Mapbox bearing 0 is North.
+                    innerEl.style.transform = `rotate(${bearing}deg)`;
+                }
+            }
         }
-    }, [progressIndex, pathData, isPlaying]);
+        
+        if (isPlaying && map.current) {
+            map.current.panTo([Number(pt.longitude), Number(pt.latitude)], { duration: 200, animate: true, easing: (t) => t });
+        }
+    }, [progressIndex, pathData, isPlaying, playbackSpeed]);
 
     const currentPoint = pathData[progressIndex];
 
@@ -229,28 +280,36 @@ export default function ReplayCenter({ authUser, deliveries }) {
                                 <button
                                     key={delivery.delivery_id}
                                     onClick={() => setSelectedDelivery(delivery)}
-                                    className={`w-full text-left p-3 rounded-xl transition-all ${
+                                    className={`group w-full text-left p-3.5 rounded-xl transition-all duration-200 ${
                                         selectedDelivery?.delivery_id === delivery.delivery_id
-                                            ? 'bg-blue-50 border border-blue-200 ring-1 ring-blue-500/50'
-                                            : 'hover:bg-slate-50 border border-transparent'
+                                            ? 'bg-gradient-to-r from-blue-50 to-indigo-50/30 border border-blue-200 shadow-sm ring-1 ring-blue-500/20 transform scale-[1.02]'
+                                            : 'hover:bg-slate-50 border border-transparent hover:border-slate-200/60'
                                     }`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="font-semibold text-slate-900 text-sm">#{delivery.waybill}</span>
-                                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                        <span className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">#{delivery.waybill}</span>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                            selectedDelivery?.delivery_id === delivery.delivery_id
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-emerald-50 text-emerald-600'
+                                        }`}>
                                             {new Date(delivery.delivered_at).toLocaleDateString()}
                                         </span>
                                     </div>
-                                    <div className="text-xs text-slate-600 mb-1 truncate">
-                                        <span className="font-medium text-slate-700">Client:</span> {delivery.client?.client_name}
+                                    <div className="text-xs text-slate-600 mb-1.5 truncate">
+                                        <span className="font-medium text-slate-400">Client:</span> <span className="font-medium">{delivery.client?.client_name}</span>
                                     </div>
-                                    <div className="text-xs text-slate-500 flex items-center gap-1">
-                                        <div className="w-4 h-4 bg-slate-200 rounded-full flex items-center justify-center">
-                                            <span className="text-[8px] font-bold text-slate-600">
+                                    <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shadow-sm ${
+                                            selectedDelivery?.delivery_id === delivery.delivery_id
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-slate-100 text-slate-600'
+                                        }`}>
+                                            <span className="text-[9px] font-bold">
                                                 {delivery.driver?.user?.firstname?.charAt(0)}
                                             </span>
                                         </div>
-                                        {delivery.driver?.user?.firstname} {delivery.driver?.user?.lastname}
+                                        <span className="font-medium">{delivery.driver?.user?.firstname} {delivery.driver?.user?.lastname}</span>
                                     </div>
                                 </button>
                             ))
@@ -288,70 +347,71 @@ export default function ReplayCenter({ authUser, deliveries }) {
                             </div>
                         )}
 
-                        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+                        <div ref={mapContainer} className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden" />
+
+                        {/* Floating Playback Controls Overlay */}
+                        {selectedDelivery && pathData.length > 0 && (
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-white/85 backdrop-blur-xl border border-white/50 p-5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-20 transition-all duration-300 hover:bg-white/95 hover:shadow-[0_8px_40px_rgb(0,0,0,0.16)]">
+                                
+                                <div className="flex items-center space-x-4 mb-5">
+                                    <span className="text-xs text-slate-500 font-bold tracking-wide uppercase">Start</span>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={pathData.length - 1}
+                                        value={progressIndex}
+                                        onChange={(e) => {
+                                            setProgressIndex(parseInt(e.target.value));
+                                            setIsPlaying(false);
+                                        }}
+                                        className="flex-1 h-2 bg-slate-200/80 rounded-full appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700 transition-all shadow-inner"
+                                    />
+                                    <span className="text-xs text-slate-500 font-bold tracking-wide uppercase">Finish</span>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-5">
+                                        <button 
+                                            onClick={() => setIsPlaying(!isPlaying)}
+                                            className="w-12 h-12 flex items-center justify-center bg-gradient-to-tr from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 text-white rounded-full shadow-lg hover:shadow-blue-500/40 transition-all focus:ring-4 ring-blue-200 transform hover:scale-105 active:scale-95"
+                                        >
+                                            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
+                                        </button>
+                                        
+                                        <div className="flex bg-slate-100/80 backdrop-blur-sm rounded-xl p-1.5 border border-slate-200/60 shadow-inner">
+                                            {[1, 2, 5, 10].map(speed => (
+                                                <button
+                                                    key={speed}
+                                                    onClick={() => setPlaybackSpeed(speed)}
+                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                                        playbackSpeed === speed 
+                                                            ? 'bg-white shadow-sm text-blue-700 scale-105' 
+                                                            : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
+                                                    }`}
+                                                >
+                                                    {speed}x
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="text-right bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-xl border border-slate-200/50 shadow-sm">
+                                        <div className="text-sm font-black text-slate-800 flex items-center justify-end gap-2.5 tracking-tight">
+                                            {currentPoint?.speed || 0} <span className="text-xs font-semibold text-slate-400">KM/H</span>
+                                            <span className={`w-2 h-2 rounded-full shadow-sm ${currentPoint?.was_offline ? 'bg-orange-500 shadow-orange-500/50' : 'bg-emerald-500 shadow-emerald-500/50'}`}></span>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">
+                                            {currentPoint ? new Date(currentPoint.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+                                            <span className="mx-1.5 opacity-50">•</span>
+                                            <span className={currentPoint?.was_offline ? 'text-orange-600' : 'text-emerald-600'}>
+                                                {currentPoint?.was_offline ? 'Offline Queue' : 'Live Sync'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-
-                    {/* Playback Controls Footer */}
-                    {selectedDelivery && pathData.length > 0 && (
-                        <div className="bg-white border-t border-slate-200 p-5 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] relative z-20">
-                            
-                            <div className="flex items-center space-x-4 mb-4">
-                                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Start</span>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max={pathData.length - 1}
-                                    value={progressIndex}
-                                    onChange={(e) => {
-                                        setProgressIndex(parseInt(e.target.value));
-                                        setIsPlaying(false);
-                                    }}
-                                    className="flex-1 h-2.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700"
-                                />
-                                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Finish</span>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <button 
-                                        onClick={() => setIsPlaying(!isPlaying)}
-                                        className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors focus:ring-4 ring-blue-200"
-                                    >
-                                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
-                                    </button>
-                                    
-                                    <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
-                                        {[1, 2, 5, 10].map(speed => (
-                                            <button
-                                                key={speed}
-                                                onClick={() => setPlaybackSpeed(speed)}
-                                                className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
-                                                    playbackSpeed === speed 
-                                                        ? 'bg-white shadow text-blue-600' 
-                                                        : 'text-slate-500 hover:text-slate-800'
-                                                }`}
-                                            >
-                                                {speed}x
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="text-right bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-                                    <div className="text-sm font-bold text-slate-800 flex items-center justify-end gap-2">
-                                        {currentPoint?.speed || 0} km/h
-                                        <span className={`w-2 h-2 rounded-full ${currentPoint?.was_offline ? 'bg-orange-500' : 'bg-emerald-500'}`}></span>
-                                    </div>
-                                    <div className="text-xs text-slate-500 mt-0.5">
-                                        {currentPoint ? new Date(currentPoint.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
-                                        {' • '}
-                                        {currentPoint?.was_offline ? 'Offline Queue' : 'Live Sync'}
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    )}
                 </div>
 
             </div>

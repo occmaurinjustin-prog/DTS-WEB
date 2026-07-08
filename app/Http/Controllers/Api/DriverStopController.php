@@ -44,6 +44,13 @@ class DriverStopController extends Controller
             ->whereIn('delivery_status', ['assigned', 'in_transit'])
             ->first();
 
+        if (!$activeDelivery) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active delivery found. Stop not recorded.'
+            ], 200);
+        }
+
         // Check if there is already an active stop (resumed_at is null)
         $activeStop = DriverStop::where('driver_id', $driver->driver_id)
             ->whereNull('resumed_at')
@@ -136,6 +143,7 @@ class DriverStopController extends Controller
         }
 
         $query = DriverStop::with(['driver.user', 'delivery.client', 'driver.truck'])
+            ->whereNotNull('delivery_id')
             ->orderBy('stopped_at', 'desc');
 
         if ($request->filled('search')) {

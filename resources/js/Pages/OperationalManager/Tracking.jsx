@@ -35,9 +35,11 @@ const PhoneIcon = ({ className }) => (
 );
 
 const TruckIcon = ({ className }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20">
-        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="3" width="15" height="13" rx="1"></rect>
+        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+        <circle cx="5.5" cy="18.5" r="2.5"></circle>
+        <circle cx="18.5" cy="18.5" r="2.5"></circle>
     </svg>
 );
 
@@ -85,6 +87,12 @@ const PlayCircleIcon = ({ className }) => (
     </svg>
 );
 
+const CubeIcon = ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7.523l-7.54 3.96M12.46 21V11.483M12.46 11.483L4 7.523M12.46 11.483l7.54-3.96M12.46 3.523l-7.54 3.96M12.46 3.523l7.54 3.96" />
+    </svg>
+);
+
 // Set Mapbox access token from environment variable
 if (mapboxgl) {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -96,10 +104,113 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     const [mapLoaded, setMapLoaded] = useState(false);
     const [followDriver, setFollowDriver] = useState(false);
     const [viewAllDrivers, setViewAllDrivers] = useState(true);
+    const [is3DView, setIs3DView] = useState(false);
+    const is3DViewRef = useRef(false);
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markers = useRef({});
     const routeLines = useRef({});
+    const selectedDriverRef = useRef(null);
+    const latestRouteRequest = useRef({});
+    const lastRoutePosition = useRef({});
+    const animationFrames = useRef({});
+    const followDriverRef = useRef(false);
+
+    // Keep ref in sync with state for websocket access
+    useEffect(() => {
+        selectedDriverRef.current = selectedDriver;
+    }, [selectedDriver]);
+
+    useEffect(() => {
+        followDriverRef.current = followDriver;
+    }, [followDriver]);
+
+    // Math for Bearing
+    function calculateBearing(startLat, startLng, destLat, destLng) {
+        const toRad = (deg) => deg * Math.PI / 180;
+        const toDeg = (rad) => rad * 180 / Math.PI;
+        
+        const startLatRad = toRad(startLat);
+        const startLngRad = toRad(startLng);
+        const destLatRad = toRad(destLat);
+        const destLngRad = toRad(destLng);
+
+        const y = Math.sin(destLngRad - startLngRad) * Math.cos(destLatRad);
+        const x = Math.cos(startLatRad) * Math.sin(destLatRad) -
+                  Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(destLngRad - startLngRad);
+        
+        let bearing = toDeg(Math.atan2(y, x));
+        return (bearing + 360) % 360;
+    }
+
+    // Smooth Marker Animation
+    function animateMarker(driverId, startLngLat, endLngLat) {
+        if (!markers.current[driverId]?.driver) return;
+        
+        const marker = markers.current[driverId].driver;
+        
+        // Calculate bearing
+        const bearing = calculateBearing(startLngLat[1], startLngLat[0], endLngLat[1], endLngLat[0]);
+        
+        const movedDistance = Math.abs(startLngLat[1] - endLngLat[1]) + Math.abs(startLngLat[0] - endLngLat[0]);
+        if (movedDistance > 0.00001) {
+            if (typeof marker.setRotation === 'function') {
+                // Navigation pointer faces North (0deg). No offset needed.
+                marker.setRotation(bearing);
+            }
+        }
+
+        const duration = 1000; // 1 second transition
+        const startTime = performance.now();
+
+        if (animationFrames.current[driverId]) {
+            cancelAnimationFrame(animationFrames.current[driverId]);
+        }
+
+        const animate = (currentTime) => {
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const easeProgress = progress * (2 - progress); // Ease out quad
+
+            const currentLng = startLngLat[0] + (endLngLat[0] - startLngLat[0]) * easeProgress;
+            const currentLat = startLngLat[1] + (endLngLat[1] - startLngLat[1]) * easeProgress;
+
+            marker.setLngLat([currentLng, currentLat]);
+
+            if (progress < 1) {
+                animationFrames.current[driverId] = requestAnimationFrame(animate);
+            }
+        };
+
+        animationFrames.current[driverId] = requestAnimationFrame(animate);
+    }
+
+    // Smart Camera Panning
+    function smartPanTo(lng, lat) {
+        if (!map.current || !followDriverRef.current) return;
+
+        const bounds = map.current.getBounds();
+        const mapSw = bounds.getSouthWest();
+        const mapNe = bounds.getNorthEast();
+
+        const lngSpan = mapNe.lng - mapSw.lng;
+        const latSpan = mapNe.lat - mapSw.lat;
+
+        const margin = 0.2; // 20% safe zone
+        
+        const isNearEdge = 
+            lng < mapSw.lng + (lngSpan * margin) ||
+            lng > mapNe.lng - (lngSpan * margin) ||
+            lat < mapSw.lat + (latSpan * margin) ||
+            lat > mapNe.lat - (latSpan * margin);
+
+        if (isNearEdge) {
+            map.current.panTo([lng, lat], {
+                duration: 1500,
+                essential: true
+            });
+        }
+    }
 
     // Transform real driver data to match component expectations
     const transformedDrivers = drivers.map(driver => {
@@ -197,7 +308,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                     const newList = [...prevList];
                     const index = newList.findIndex(d => d.id === e.id);
                     if (index !== -1) {
-                        newList[index] = {
+                        const updatedDriver = {
                             ...newList[index],
                             currentLocation: { lat: e.lat, lng: e.lng },
                             speed: e.speed,
@@ -205,15 +316,72 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                             isGpsEnabled: e.isGpsEnabled,
                             lastUpdated: 'Just now'
                         };
+
+                        // If the backend provided the updated delivery status, apply it so the route updates in real-time
+                        if (e.deliveryStatus && updatedDriver.delivery) {
+                            updatedDriver.delivery = {
+                                ...updatedDriver.delivery,
+                                delivery_status: e.deliveryStatus
+                            };
+                            updatedDriver.eta = e.deliveryStatus === 'in_transit' ? 'In Transit' :
+                                               e.deliveryStatus === 'assigned' ? 'Assigned' : 'Unknown';
+                        }
+
+                        // Update the map marker immediately!
+                        if (markers.current && markers.current[e.id]?.driver) {
+                            const startLngLat = markers.current[e.id].driver.getLngLat().toArray();
+                            const endLngLat = [e.lng, e.lat];
+                            animateMarker(e.id, startLngLat, endLngLat);
+                            
+                            // Redraw the route line if this is the currently viewed driver so it vanishes behind them
+                            if (selectedDriverRef.current?.id === e.id) {
+                                smartPanTo(e.lng, e.lat);
+
+                                const last = lastRoutePosition.current[e.id];
+
+                                if (!last) {
+                                    lastRoutePosition.current[e.id] = {
+                                        lat: e.lat,
+                                        lng: e.lng
+                                    };
+                                    drawRoute(updatedDriver);
+                                } else {
+                                    const moved = Math.abs(last.lat - e.lat) + Math.abs(last.lng - e.lng);
+                                    if (moved > 0.0003) {
+                                        lastRoutePosition.current[e.id] = {
+                                            lat: e.lat,
+                                            lng: e.lng
+                                        };
+                                        drawRoute(updatedDriver);
+                                    }
+                                }
+                            }
+                        }
+
+                        newList[index] = updatedDriver;
                     }
                     return newList;
                 });
             });
 
         return () => {
-            if (window.Echo) window.Echo.leaveChannel('drivers');
+            if (window.Echo) {
+                window.Echo.leaveChannel('drivers');
+            }
         };
-    }, []); // Empty deps - always poll regardless of selection
+    }, []); // Empty deps - attach listener once
+
+    // Watch for delivery status changes in real-time
+    useEffect(() => {
+        if (selectedDriver && driverList) {
+            const currentDriver = driverList.find(d => d.id === selectedDriver.id);
+            if (currentDriver && currentDriver.delivery?.delivery_status !== selectedDriver.delivery?.delivery_status) {
+                console.log('Delivery status changed in real-time! Redrawing map markers...', currentDriver.delivery?.delivery_status);
+                setSelectedDriver(currentDriver);
+                showDriverOnMap(currentDriver);
+            }
+        }
+    }, [driverList, selectedDriver]);
 
     // Initialize Mapbox map (same approach as working LocationPickerModal)
     useEffect(() => {
@@ -300,7 +468,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     const updateAllDriversPositions = () => {
         if (!map.current) return;
 
-        transformedDrivers.forEach(driver => {
+        driverList.forEach(driver => {
             if (markers.current[driver.id]?.driver) {
                 // Update existing marker
                 markers.current[driver.id].driver.setLngLat([
@@ -337,7 +505,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     // Update map when driver data changes (real-time updates)
     useEffect(() => {
         if (selectedDriver && map.current) {
-            const updatedDriver = transformedDrivers.find(d => d.id === selectedDriver.id);
+            const updatedDriver = driverList.find(d => d.id === selectedDriver.id);
             if (updatedDriver) {
                 setSelectedDriver(updatedDriver);
                 updateDriverPosition(updatedDriver);
@@ -486,8 +654,9 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                 driver.currentLocation.lng,
                 driver.currentLocation.lat
             ],
-            zoom: 13,
-            duration: 1000
+            zoom: 16.5,
+            pitch: 0,
+            duration: 1500
         });
     };
 
@@ -495,19 +664,25 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     const fetchAndDrawPath = async (driverId) => {
         if (!map.current) return;
 
+        // Remove previous path layers if any
         ['driver-path-online', 'driver-path-offline'].forEach(layerId => {
             if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
             if (map.current.getSource(layerId)) map.current.removeSource(layerId);
         });
 
         try {
-            const res = await fetch(`/api/drivers/${driverId}/path?hours=8`);
+            const token = localStorage.getItem('authToken') || '';
+            const res = await fetch(`/api/admin/driver-path/${driverId}?hours=8`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
             const data = await res.json();
             if (!data.success || !data.path?.length) return;
 
+            // Split online vs offline segments
             const onlineCoords  = data.path.filter(p => !p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
             const offlineCoords = data.path.filter(p => p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
 
+            // Draw solid blue line for online points
             if (onlineCoords.length >= 2) {
                 map.current.addSource('driver-path-online', {
                     type: 'geojson',
@@ -522,6 +697,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                 });
             }
 
+            // Draw dashed orange line for offline (queued) points
             if (offlineCoords.length >= 2) {
                 map.current.addSource('driver-path-offline', {
                     type: 'geojson',
@@ -550,18 +726,18 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     // Create custom driver marker element
     const createDriverMarker = (driver) => {
         const el = document.createElement('div');
-        el.className = 'relative';
+        el.className = 'relative flex items-center justify-center';
         
         const isGpsOn = driver.isGpsEnabled ?? true;
-        const outerClass = isGpsOn ? 'bg-blue-500 animate-ping' : 'bg-red-500';
+        const outerClass = isGpsOn ? 'bg-blue-500 animate-pulse' : 'bg-red-500';
         const innerClass = isGpsOn ? 'bg-blue-600' : 'bg-red-600';
         
+        // Using a sleek navigation arrow (chevron) for the map marker instead of a truck
         el.innerHTML = `
-            <div class="absolute inset-0 ${outerClass} rounded-full opacity-75"></div>
-            <div class="relative ${innerClass} rounded-full p-2 border-2 border-white shadow-lg">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+            <div class="absolute w-12 h-12 ${outerClass} rounded-full opacity-30"></div>
+            <div class="relative ${innerClass} w-8 h-8 rounded-full border-2 border-white shadow-xl flex items-center justify-center">
+                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24" style="margin-bottom: 2px;">
+                    <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
                 </svg>
             </div>
         `;
@@ -643,120 +819,67 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
 
         const routeId = `route-${driver.id}`;
 
-        // Validate coordinates before processing
-        if (!isValidCoordinate(driver.pickup.lat, driver.pickup.lng)) {
-            console.error('Invalid pickup coordinates:', driver.pickup.lat, driver.pickup.lng);
+        const requestId = Date.now();
+        latestRouteRequest.current[driver.id] = requestId;
+
+        let coordinates = [];
+
+        if (driver.delivery?.delivery_status === 'in_transit') {
+            coordinates = [
+                [driver.currentLocation.lng, driver.currentLocation.lat],
+                [driver.destination.lng, driver.destination.lat],
+            ];
+        } else {
+            coordinates = [
+                [driver.currentLocation.lng, driver.currentLocation.lat],
+                [driver.pickup.lng, driver.pickup.lat],
+            ];
+        }
+
+        const route = await getDirections(coordinates);
+
+        if (!route) return;
+
+        // Ignore old API responses
+        if (latestRouteRequest.current[driver.id] !== requestId) {
             return;
         }
-        if (!isValidCoordinate(driver.destination.lat, driver.destination.lng)) {
-            console.error('Invalid destination coordinates:', driver.destination.lat, driver.destination.lng);
-            return;
+
+        const routeData = {
+            type: "Feature",
+            geometry: {
+                type: "LineString",
+                coordinates: route.coordinates,
+            },
+        };
+
+        const source = map.current.getSource(routeId);
+
+        if (source) {
+            source.setData(routeData);
+        } else {
+            map.current.addSource(routeId, {
+                type: "geojson",
+                data: routeData,
+            });
+
+            map.current.addLayer({
+                id: routeId,
+                type: "line",
+                source: routeId,
+                layout: {
+                    "line-join": "round",
+                    "line-cap": "round",
+                },
+                paint: {
+                    "line-color": "#2563EB",
+                    "line-width": 5,
+                    "line-opacity": 0.85,
+                },
+            });
         }
-        if (!isValidCoordinate(driver.currentLocation.lat, driver.currentLocation.lng)) {
-            console.error('Invalid current location coordinates:', driver.currentLocation.lat, driver.currentLocation.lng);
-            return;
-        }
-
-        // REMOVE OLD LAYER
-        if (map.current.getLayer(routeId)) {
-            try {
-                map.current.removeLayer(routeId);
-            } catch (e) {
-                console.log('Layer already removed or does not exist:', e);
-            }
-        }
-
-        // REMOVE OLD SOURCE with retry logic
-        if (map.current.getSource(routeId)) {
-            try {
-                map.current.removeSource(routeId);
-            } catch (e) {
-                console.log('Source already removed or does not exist:', e);
-            }
-        }
-
-        try {
-            let routeCoordinates = [];
-
-            // DRIVER ALREADY PICKED UP CARGO
-            if (driver.delivery?.delivery_status === 'in_transit') {
-
-                const coordinates = [
-                    [driver.currentLocation.lng, driver.currentLocation.lat],
-                    [driver.destination.lng, driver.destination.lat]
-                ];
-
-                const route = await getDirections(coordinates);
-
-                if (route) {
-                    routeCoordinates = route.coordinates;
-                }
-
-            } else {
-
-                // BEFORE PICKUP
-                // ONLY show route to pickup location
-                const coordinates = [
-                    [driver.currentLocation.lng, driver.currentLocation.lat],
-                    [driver.pickup.lng, driver.pickup.lat]
-                ];
-
-                const route = await getDirections(coordinates);
-
-                if (route) {
-                    routeCoordinates = route.coordinates;
-                } else {
-                    console.error('Road route failed');
-                    return;
-                }
-            }
-
-            const routeData = {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: routeCoordinates
-                }
-            };
-
-            // Check if source already exists to prevent duplicate error
-            if (map.current.getSource(routeId)) {
-                // Update existing source data instead of adding new one
-                map.current.getSource(routeId).setData(routeData);
-            } else {
-                // Add new source
-                map.current.addSource(routeId, {
-                    type: 'geojson',
-                    data: routeData
-                });
-            }
-
-            // Check if layer already exists
-            if (!map.current.getLayer(routeId)) {
-                map.current.addLayer({
-                    id: routeId,
-                    type: 'line',
-                    source: routeId,
-                    layout: {
-                        'line-join': 'round',
-                        'line-cap': 'round'
-                    },
-                    paint: {
-                        'line-color': '#3B82F6',
-                        'line-width': 5,
-                        'line-opacity': 0.8
-                    }
-                });
-            }
-
-            routeLines.current[routeId] = true;
-
-        } catch (error) {
-
-            console.error('Route drawing error:', error);
-
-            drawStraightLineRoute(driver, routeId);
-        }
+        
+        routeLines.current[routeId] = true;
     };
 
     // Fallback straight line route
@@ -843,29 +966,41 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
         if (!map.current || !markers.current[driver.id]?.driver) return;
 
         const driverMarker = markers.current[driver.id].driver;
-        driverMarker.setLngLat([
-            driver.currentLocation.lng,
-            driver.currentLocation.lat
-        ]);
+        const startLngLat = driverMarker.getLngLat().toArray();
+        const endLngLat = [driver.currentLocation.lng, driver.currentLocation.lat];
+
+        // Animate marker and rotation
+        animateMarker(driver.id, startLngLat, endLngLat);
 
         // Redraw route with new position
         drawRoute(driver);
 
-        // If following driver, pan map to new position with smooth animation
-        if (followDriver) {
-            map.current.flyTo({
-                center: [
-                    driver.currentLocation.lng,
-                    driver.currentLocation.lat
-                ],
-                zoom: 13,
-                duration: 3000, // Smoother transition
-                essential: true,
-                easing: (t) => {
-                    // Custom easing function for smoother animation
-                    return t * (2 - t); // Ease-out quadratic
+        // Smart Pan if following
+        if (followDriverRef.current && selectedDriverRef.current?.id === driver.id) {
+            if (is3DViewRef.current) {
+                // Calculate bearing for auto-rotation
+                let bearing = map.current.getBearing();
+                if (startLngLat[0] !== endLngLat[0] || startLngLat[1] !== endLngLat[1]) {
+                    const toRad = (deg) => (deg * Math.PI) / 180;
+                    const toDeg = (rad) => (rad * 180) / Math.PI;
+                    const lat1 = toRad(startLngLat[1]);
+                    const lat2 = toRad(endLngLat[1]);
+                    const dLng = toRad(endLngLat[0] - startLngLat[0]);
+                    const y = Math.sin(dLng) * Math.cos(lat2);
+                    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+                    bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
                 }
-            });
+
+                map.current.easeTo({
+                    center: [driver.currentLocation.lng, driver.currentLocation.lat],
+                    bearing: bearing,
+                    pitch: 65,
+                    duration: 1000,
+                    easing: (t) => t
+                });
+            } else {
+                smartPanTo(driver.currentLocation.lng, driver.currentLocation.lat);
+            }
         }
     };
 
@@ -885,7 +1020,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
             onSuccess: () => {
                 console.log('Driver data refreshed');
                 // Update driver on map with refreshed data
-                const updatedDriver = transformedDrivers.find(d => d.id === driver.id);
+                const updatedDriver = driverList.find(d => d.id === driver.id);
                 if (updatedDriver) {
                     updateDriverPosition(updatedDriver);
                 }
@@ -913,7 +1048,8 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                     selectedDriver.currentLocation.lng,
                     selectedDriver.currentLocation.lat
                 ],
-                zoom: 15, // Closer zoom when following
+                zoom: 18, // Closer zoom when following (increased for better view)
+                pitch: is3DView ? 65 : 0,
                 duration: 1500,
                 essential: true
             });
@@ -928,10 +1064,14 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
     };
 
     // Filter drivers based on search
-    const filteredDrivers = driverList.filter(driver =>
-        driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        driver.plateNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredDrivers = driverList.filter(driver => {
+        if (!searchTerm) return true;
+        const searchParts = searchTerm.toLowerCase().split(' ').filter(part => part.trim() !== '');
+        return searchParts.every(part => 
+            driver.name.toLowerCase().includes(part) || 
+            driver.plateNumber.toLowerCase().includes(part)
+        );
+    });
 
     // Get status badge styling
     const getStatusBadge = (status) => {
@@ -965,9 +1105,9 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
         <OperationalManagerLayout title="Live Tracking" authUser={authUser} activeMenu="tracking">
             <div className="w-full h-screen flex overflow-hidden bg-gray-50">
                 {/* LEFT PANEL - Driver List */}
-                <div className="w-[380px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
+                <div className="w-[350px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-lg z-10">
                     {/* Header */}
-                    <div className="p-5 border-b border-slate-200 bg-slate-50/50">
+                    <div className="p-4 border-b border-slate-200 bg-slate-50/50">
                         <div className="mb-4">
                             <h1 className="text-xl font-bold text-slate-955 flex items-center gap-2">
                                 <NavigationIcon className="w-5.5 h-5.5 text-blue-600 animate-pulse" />
@@ -1051,9 +1191,9 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                 <div className="flex-1 relative">
                     {/* Map Container */}
                     <div
-    ref={mapContainer}
-    className="absolute inset-4 w-[calc(104%-2rem)] h-[calc(95%-2rem)] rounded-l-2xl overflow-hidden"
-/>
+                        ref={mapContainer}
+                        className="absolute inset-0 w-full h-full bg-slate-100"
+                    />
                     
                     {/* Loading indicator */}
                     {!mapLoaded && (
@@ -1091,153 +1231,32 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                                 {followDriver ? 'Following' : 'Follow Driver'}
                             </button>
                         )}
+                        <button
+                            onClick={() => {
+                                const nextState = !is3DView;
+                                setIs3DView(nextState);
+                                is3DViewRef.current = nextState;
+                                if (map.current) {
+                                    map.current.easeTo({
+                                        pitch: nextState ? 65 : 0,
+                                        duration: 1000
+                                    });
+                                }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+                                is3DView
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                            <CubeIcon className="w-4 h-4" />
+                            {is3DView ? '2D View' : '3D View'}
+                        </button>
                     </div>
 
-                    {/* Legend */}
-                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-lg rounded-lg shadow-lg p-3">
-                        <h4 className="text-xs font-semibold text-gray-700 mb-2">Legend</h4>
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                                <span>Driver</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span>Pickup</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                <span>Destination</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-8 h-0.5 bg-blue-500"></div>
-                                <span>Route</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Compact Floating Driver Info Card */}
-{selectedDriver && (
-    <div className="absolute top-4 right-4 w-[300px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn z-50">
 
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 px-4 py-4 text-white">
 
-            {/* Close Button */}
-            <button
-                onClick={() => setSelectedDriver(null)}
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all"
-            >
-                <XMarkIcon className="w-4 h-4 text-white" />
-            </button>
-
-            <div className="flex items-center gap-3">
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center border border-white/30">
-                    <TruckIcon className="w-5 h-5 text-white" />
-                </div>
-
-                <div className="flex-1 pr-8">
-                    <h3 className="text-base font-bold leading-tight">
-                        {selectedDriver.name}
-                    </h3>
-
-                    <div className="flex items-center gap-2 mt-1 text-blue-100 text-xs">
-                        <span>{selectedDriver.plateNumber}</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Status */}
-            <div className="mt-3">
-                {getStatusBadge(selectedDriver.status)}
-            </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-4 space-y-4">
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2">
-
-                <div className="bg-blue-50 rounded-xl p-2 border border-blue-100">
-                    <p className="text-[10px] text-blue-600 font-medium mb-1">
-                        ETA
-                    </p>
-                    <p className="text-xs font-bold text-gray-900">
-                        {selectedDriver.eta}
-                    </p>
-                </div>
-
-                <div className="bg-purple-50 rounded-xl p-2 border border-purple-100">
-                    <p className="text-[10px] text-purple-600 font-medium mb-1">
-                        Distance
-                    </p>
-                    <p className="text-xs font-bold text-gray-900">
-                        {selectedDriver.distance}
-                    </p>
-                </div>
-
-                <div className="bg-green-50 rounded-xl p-2 border border-green-100">
-                    <p className="text-[10px] text-green-600 font-medium mb-1">
-                        Cargo
-                    </p>
-                    <p className="text-xs font-bold text-gray-900 truncate">
-                        {selectedDriver.cargoWeight}
-                    </p>
-                </div>
-            </div>
-
-            {/* Locations */}
-            <div className="space-y-3">
-
-                {/* Pickup */}
-                <div className="flex gap-2">
-                    <div className="mt-1 w-3 h-3 rounded-full bg-green-500"></div>
-
-                    <div className="flex-1">
-                        <p className="text-[10px] uppercase font-semibold text-green-600 mb-1">
-                            Pickup
-                        </p>
-
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                            {selectedDriver.pickup.address}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Destination */}
-                <div className="flex gap-2">
-                    <div className="mt-1 w-3 h-3 rounded-full bg-red-500"></div>
-
-                    <div className="flex-1">
-                        <p className="text-[10px] uppercase font-semibold text-red-600 mb-1">
-                            Destination
-                        </p>
-
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                            {selectedDriver.destination.address}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-1">
-
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold transition-all">
-                    View Route
-                </button>
-
-                <button className="w-11 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all">
-                    <PhoneIcon className="w-4 h-4 text-gray-700" />
-                </button>
-
-            </div>
-        </div>
-    </div>
-
-                        )}
                 </div>
             </div>
         </OperationalManagerLayout>

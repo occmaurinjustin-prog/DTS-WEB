@@ -14,9 +14,7 @@ export default function Payroll({ payrolls, mechanics }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generateAll, setGenerateAll] = useState(false);
     
-    // Modal state for confirming payment
-    const [confirmPayId, setConfirmPayId] = useState(null);
-    
+
     // Filter State
     const [filterDate, setFilterDate] = useState('');
 
@@ -51,15 +49,6 @@ export default function Payroll({ payrolls, mechanics }) {
                 setGenerateAll(false);
             }
         });
-    };
-
-    const handleMarkAsPaid = () => {
-        if (confirmPayId) {
-            router.patch(`/office-staff/payroll/${confirmPayId}/pay`, {}, {
-                preserveScroll: true,
-                onSuccess: () => setConfirmPayId(null)
-            });
-        }
     };
 
     return (
@@ -298,15 +287,7 @@ export default function Payroll({ payrolls, mechanics }) {
                                                                 {record.status === 'paid' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                                                                 {record.status === 'paid' ? 'Paid' : 'Pending'}
                                                             </span>
-                                                            
-                                                            {record.status !== 'paid' && (
-                                                                <button 
-                                                                    onClick={() => setConfirmPayId(record.payroll_id)}
-                                                                    className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
-                                                                >
-                                                                    Mark as Paid
-                                                                </button>
-                                                            )}
+
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -320,34 +301,6 @@ export default function Payroll({ payrolls, mechanics }) {
                 </div>
             </div>
 
-            {/* Custom Confirm Payment Modal */}
-            {confirmPayId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-indigo-100">
-                            <DollarSign className="w-8 h-8 text-indigo-500" strokeWidth={1.5} />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-900 text-center mb-2">Mark as Paid?</h3>
-                        <p className="text-slate-500 text-center text-sm font-medium mb-8">
-                            This will mark the payroll record as fully settled and paid out. This action cannot be undone.
-                        </p>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setConfirmPayId(null)}
-                                className="flex-1 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl transition-colors border border-slate-200"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={handleMarkAsPaid}
-                                className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-200"
-                            >
-                                Yes, Mark Paid
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </OfficeStaffLayout>
     );
 }

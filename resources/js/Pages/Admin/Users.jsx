@@ -98,6 +98,20 @@ export default function Users({ userStats, authUser, trucks }) {
             color: 'from-emerald-600 to-teal-700',
             description: 'Maintain and repair fleet vehicles'
         },
+        {
+            value: 'purchaser',
+            label: 'Purchaser',
+            icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+            color: 'from-purple-600 to-indigo-600',
+            description: 'Manage procurement and purchasing'
+        },
+        {
+            value: 'billing',
+            label: 'Billing',
+            icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
+            color: 'from-blue-600 to-cyan-600',
+            description: 'Handle invoices and billing processes'
+        },
     ];
 
 
@@ -529,7 +543,14 @@ export default function Users({ userStats, authUser, trucks }) {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                                            <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                            <input type="tel" value={formData.phone} onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                if (val.length <= 11) {
+                                                    setFormData({ ...formData, phone: val });
+                                                }
+                                            }}
+                                                pattern="[0-9]{11}"
+                                                maxLength={11}
                                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-emerald-300 focus:border-[#10B981] focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none" required />
                                         </div>
                                     </div>

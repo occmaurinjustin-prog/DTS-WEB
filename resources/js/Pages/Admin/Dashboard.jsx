@@ -316,118 +316,264 @@ function DeliveryStatusChart({ data }) {
     );
 }
 
-// ==================== LIVE ACTIVITY ITEM ====================
-function ActivityItem({ icon, title, description, time, status, statusColor }) {
-    return (
-        <div className="flex items-start gap-2 py-2.5 border-b border-slate-50 last:border-0">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Icon name={icon} className="w-4 h-4 text-slate-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-slate-900 truncate">{title}</p>
-                    {status && (
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusColor}`}>
-                            {status}
-                        </span>
-                    )}
-                </div>
-                <p className="text-xs text-slate-500">{description}</p>
-            </div>
-            <span className="text-[10px] text-slate-400 flex-shrink-0">{time}</span>
-        </div>
-    );
-}
 
-// ==================== RECENT DELIVERIES TABLE ====================
-function RecentDeliveriesTable({ deliveries }) {
-    const getStatusStyle = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'delivered':
-                return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-            case 'in_transit':
-                return 'bg-amber-100 text-amber-700 border border-amber-200';
-            case 'pending':
-                return 'bg-gray-100 text-gray-700 border border-gray-200';
-            case 'cancelled':
-                return 'bg-red-100 text-red-700 border border-red-200';
-            default:
-                return 'bg-gray-100 text-gray-700 border border-gray-200';
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// ==================== FLEET PERFORMANCE BOARD ====================
+function FleetPerformanceBoard({ data }) {
+    if (!data) return null;
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'monthly_trips', direction: 'desc' });
+
+    const handleSort = (key) => {
+        let direction = 'desc';
+        if (sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
         }
+        setSortConfig({ key, direction });
     };
 
-    const displayData = deliveries?.slice(0, 6) || [];
+    const sortedTrucks = [...data.trucks].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    }).filter(t => t.plate_number.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const handlePreviousMonth = () => {
+        let prevMonth = parseInt(data.month) - 1;
+        let prevYear = parseInt(data.year);
+        if (prevMonth < 1) {
+            prevMonth = 12;
+            prevYear--;
+        }
+        router.get('/admin/dashboard', { month: prevMonth, year: prevYear }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleNextMonth = () => {
+        let nextMonth = parseInt(data.month) + 1;
+        let nextYear = parseInt(data.year);
+        if (nextMonth > 12) {
+            nextMonth = 1;
+            nextYear++;
+        }
+        router.get('/admin/dashboard', { month: nextMonth, year: nextYear }, { preserveState: true, preserveScroll: true });
+    };
+
+    const exportToPDF = () => {
+        const doc = new jsPDF('landscape');
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(16, 185, 129); // Emerald-500
+        doc.text("Fleet Weekly Trip Monitoring", 14, 22);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text(`Period: ${data.month_name} ${data.year}`, 14, 30);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 36);
+
+        const tableColumn = [
+            "Plate Number", 
+            ...data.weeks_headers.map(w => `Week ${w.week}\n(${w.label})`), 
+            "Total Trips"
+        ];
+        
+        const tableRows = sortedTrucks.map(t => {
+            const row = [t.plate_number];
+            data.weeks_headers.forEach(w => {
+                row.push(t.weeks[w.week].toString());
+            });
+            row.push(t.monthly_trips.toString());
+            return row;
+        });
+
+        autoTable(doc, {
+            startY: 45,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [16, 185, 129] },
+            styles: { fontSize: 10, halign: 'center' },
+            columnStyles: {
+                0: { fontStyle: 'bold', halign: 'left' }
+            }
+        });
+
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, {align: 'center'});
+        }
+
+        doc.save(`fleet_performance_${data.month_name}_${data.year}.pdf`);
+    };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Recent Deliveries</h3>
-                <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 rounded-md transition-all">
-                        <Icon name="filter" className="w-3.5 h-3.5" />
-                        Filter
-                    </button>
-                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 rounded-md transition-all">
-                        <Icon name="download" className="w-3.5 h-3.5" />
-                        Export
-                    </button>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden flex flex-col h-full">
+            {/* Header Area */}
+            <div className="p-5 border-b border-slate-100">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Fleet Weekly Trip Monitoring</h3>
+                        <p className="text-sm text-slate-500">Monitor truck performance across {data.month_name} {data.year}</p>
+                    </div>
+                    
+                    {/* Month Controls & Actions */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
+                            <button onClick={handlePreviousMonth} className="p-1.5 hover:bg-white hover:shadow-sm rounded text-slate-600 transition-all">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <span className="px-3 text-sm font-semibold text-slate-800 min-w-[120px] text-center">
+                                {data.month_name} {data.year}
+                            </span>
+                            <button onClick={handleNextMonth} className="p-1.5 hover:bg-white hover:shadow-sm rounded text-slate-600 transition-all">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="relative">
+                            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input 
+                                type="text" 
+                                placeholder="Search Plate..." 
+                                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none w-40 transition-all"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        <button onClick={exportToPDF} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Export to PDF
+                        </button>
+                    </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Trucks</p>
+                            <p className="text-2xl font-bold text-slate-800">{data.summary.total_trucks}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-slate-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="trucks" className="w-5 h-5 text-slate-500" />
+                        </div>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">Total Trips</p>
+                            <p className="text-2xl font-bold text-blue-800">{data.summary.total_trips}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-blue-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="tracking" className="w-5 h-5 text-blue-600" />
+                        </div>
+                    </div>
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Top Truck</p>
+                            <p className="text-xl font-bold text-emerald-800 truncate max-w-[100px]">{data.summary.highest_performing_truck}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-emerald-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="dashboard" className="w-5 h-5 text-emerald-600" />
+                        </div>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Avg Trips</p>
+                            <p className="text-2xl font-bold text-indigo-800">{data.summary.average_trips}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-indigo-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="reports" className="w-5 h-5 text-indigo-600" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead className="bg-slate-50/80">
+            {/* Responsive Table */}
+            <div className="overflow-x-auto flex-1 pb-2">
+                <table className="w-full text-sm text-left border-collapse">
+                    <thead className="bg-slate-50 border-y border-slate-200 shadow-sm sticky top-0 z-20">
                         <tr>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Tracking</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Driver</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Truck</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Est. Delivery</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Actions</th>
+                            <th 
+                                className="sticky left-0 bg-slate-50 px-6 py-4 font-semibold text-slate-700 uppercase tracking-wider text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100 z-30 shadow-[1px_0_0_0_#e2e8f0]"
+                                onClick={() => handleSort('plate_number')}
+                            >
+                                <div className="flex items-center gap-2">
+                                    Plate Number
+                                    {sortConfig.key === 'plate_number' && (
+                                        <span className="text-indigo-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                                    )}
+                                </div>
+                            </th>
+                            {data.weeks_headers.map(week => (
+                                <th key={week.week} className="px-6 py-4 font-semibold text-slate-700 uppercase tracking-wider text-xs text-center border-r border-slate-100 min-w-[130px]">
+                                    <div>Week {week.week}</div>
+                                    <div className="text-[10px] text-slate-400 mt-1 normal-case font-medium bg-white px-2 py-0.5 rounded border border-slate-100 inline-block">{week.label}</div>
+                                </th>
+                            ))}
+                            <th 
+                                className="px-6 py-4 font-bold text-slate-800 uppercase tracking-wider text-xs text-center bg-slate-100 cursor-pointer hover:bg-slate-200 border-l border-slate-200"
+                                onClick={() => handleSort('monthly_trips')}
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    Total Trips
+                                    {sortConfig.key === 'monthly_trips' && (
+                                        <span className="text-indigo-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                                    )}
+                                </div>
+                            </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {displayData.map((delivery) => (
-                            <tr key={delivery.delivery_id} className="hover:bg-slate-50/80 transition-colors">
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                    <span className="text-sm font-medium text-[#4F46E5]">#{delivery.waybill}</span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center">
-                                            <span className="text-xs font-semibold text-slate-600">
-                                                {delivery.client?.client_name?.charAt(0) || '?'}
-                                            </span>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                        {sortedTrucks.length > 0 ? sortedTrucks.map((truck) => (
+                            <tr key={truck.truck_id} className="hover:bg-slate-50/80 transition-colors group">
+                                <td className="sticky left-0 bg-white group-hover:bg-slate-50/80 px-6 py-4 border-r border-slate-200 z-10 shadow-[1px_0_0_0_#e2e8f0]">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                                            <Icon name="trucks" className="w-4 h-4 text-indigo-600" />
                                         </div>
-                                        <span className="text-sm text-slate-900">{delivery.client?.client_name || 'Unknown'}</span>
+                                        <span className="font-bold text-slate-800 font-mono tracking-tight">{truck.plate_number}</span>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                    <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${getStatusStyle(delivery.status)}`}>
-                                        {delivery.status?.replace('_', ' ') || 'Pending'}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">
-                                    {delivery.driver?.user?.firstname} {delivery.driver?.user?.lastname}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">
-                                    {delivery.truck?.plate_number || 'N/A'}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">
-                                    {delivery.estimated_delivery_time ? new Date(delivery.estimated_delivery_time).toLocaleDateString() : 'N/A'}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                    <button className="w-7 h-7 bg-slate-50 hover:bg-[#4F46E5] hover:text-white rounded-md flex items-center justify-center transition-all">
-                                        <Icon name="eye" className="w-3.5 h-3.5" />
-                                    </button>
+                                {data.weeks_headers.map(week => {
+                                    const trips = truck.weeks[week.week];
+                                    let cellColor = 'text-slate-300';
+                                    let bgColor = '';
+                                    
+                                    if (trips > 10) {
+                                        cellColor = 'text-emerald-700 font-bold';
+                                        bgColor = 'bg-emerald-50/50';
+                                    } else if (trips > 5) {
+                                        cellColor = 'text-blue-700 font-semibold';
+                                    } else if (trips > 0) {
+                                        cellColor = 'text-slate-700 font-medium';
+                                    }
+
+                                    return (
+                                        <td key={week.week} className={`px-6 py-4 text-center border-r border-slate-50 ${bgColor}`}>
+                                            <span className={cellColor}>{trips}</span>
+                                        </td>
+                                    );
+                                })}
+                                <td className="px-6 py-4 text-center font-bold text-slate-900 bg-slate-50/50 border-l border-slate-100 text-base">
+                                    {truck.monthly_trips}
                                 </td>
                             </tr>
-                        ))}
-                        {displayData.length === 0 && (
+                        )) : (
                             <tr>
-                                <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-sm">
-                                    No recent deliveries found
+                                <td colSpan={data.weeks_headers.length + 2} className="px-6 py-12 text-center text-slate-500">
+                                    No trucks found matching your criteria.
                                 </td>
                             </tr>
                         )}
@@ -439,7 +585,20 @@ function RecentDeliveriesTable({ deliveries }) {
 }
 
 // ==================== HEADER COMPONENT ====================
-function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle }) {
+function Header({ authUser, liveNotifications = [], setLiveNotifications, darkMode, onDarkModeToggle }) {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (isDropdownOpen && !e.target.closest('.notifications-dropdown-container')) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isDropdownOpen]);
+
     return (
         <header className="h-[70px] bg-white border-b border-gray-200 px-[30px] flex items-center justify-between sticky top-0 z-40">
             {/* Left - Page Title */}
@@ -464,14 +623,49 @@ function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle })
             {/* Right - Actions & Profile */}
             <div className="flex items-center gap-4">
                 {/* Notifications */}
-                <button className="relative w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all">
-                    <Icon name="notifications" className="w-5 h-5 text-gray-600" />
-                    {notificationCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                            {notificationCount > 9 ? '9+' : notificationCount}
-                        </span>
+                <div className="relative notifications-dropdown-container">
+                    <button 
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="relative w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all"
+                    >
+                        <Icon name="notifications" className="w-5 h-5 text-gray-600" />
+                        {liveNotifications.length > 0 && (
+                            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                {liveNotifications.length > 9 ? '9+' : liveNotifications.length}
+                            </span>
+                        )}
+                    </button>
+                    
+                    {/* Notifications Dropdown */}
+                    {isDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-[60]">
+                            <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center">
+                                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                                {liveNotifications.length > 0 && (
+                                    <button onClick={() => setLiveNotifications([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Clear All</button>
+                                )}
+                            </div>
+                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                {liveNotifications.length === 0 ? (
+                                    <p className="px-4 py-6 text-sm text-gray-500 text-center">No new notifications</p>
+                                ) : (
+                                    liveNotifications.map((notif, idx) => (
+                                        <Link key={idx} href="/admin/deliveries" className="px-4 py-3 hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-0 flex gap-3 items-start block">
+                                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                <Icon name="deliveries" className="w-4 h-4 text-emerald-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-900">New Request: #{notif.waybill}</p>
+                                                <p className="text-xs text-gray-600 mt-0.5">Client: {notif.client_name}</p>
+                                                <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.created_at).toLocaleTimeString()}</p>
+                                            </div>
+                                        </Link>
+                                    ))
+                                )}
+                            </div>
+                        </div>
                     )}
-                </button>
+                </div>
 
                 {/* Fullscreen */}
                 <button className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all">
@@ -487,17 +681,21 @@ function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle })
                 </button>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
-                        <span className="text-white font-semibold text-sm">
-                            {authUser?.firstname?.charAt(0) || 'A'}
-                        </span>
-                    </div>
+                <Link href="/profile" className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 p-2 rounded-xl transition-colors cursor-pointer">
+                    {authUser?.profile_image ? (
+                        <img src={authUser.profile_image} alt="Profile" className="w-10 h-10 rounded-xl object-cover shadow-sm border border-gray-200" />
+                    ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                                {authUser?.firstname?.charAt(0) || 'A'}
+                            </span>
+                        </div>
+                    )}
                     <div className="hidden md:block">
-                        <p className="text-sm font-medium text-gray-900">{authUser?.firstname || 'Admin'} {authUser?.lastname || 'User'}</p>
+                        <p className="text-sm font-medium text-gray-900 group-hover:text-[#4F46E5] transition-colors">{authUser?.firstname || 'Admin'} {authUser?.lastname || 'User'}</p>
                         <p className="text-xs text-gray-500">Administrator</p>
                     </div>
-                </div>
+                </Link>
 
                 {/* Logout Button */}
                 <div className="pl-4 border-l border-gray-200 ml-2">
@@ -509,16 +707,36 @@ function Header({ authUser, notificationCount = 0, darkMode, onDarkModeToggle })
 }
 
 // ==================== MAIN DASHBOARD PAGE ====================
-export default function Dashboard({ authUser, stats, recentDeliveries, notificationCount = 0 }) {
+export default function Dashboard({ authUser, stats, recentDeliveries, initialNotifications = [], fleetPerformance }) {
     const [darkMode, setDarkMode] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [liveNotifications, setLiveNotifications] = useState(initialNotifications);
 
-    // Real-time updates
+    // Real-time updates via WebSockets
+    useEffect(() => {
+        if (!window.Echo) return;
+
+        const channel = window.Echo.channel('deliveries')
+            .listen('DeliveryCreated', (e) => {
+                if (e.deliveryData) {
+                    setLiveNotifications(prev => [e.deliveryData, ...prev]);
+                    // Instantly fetch new data
+                    router.reload({ only: ['stats', 'recentDeliveries'], preserveScroll: true, preserveState: true });
+                    setLastUpdated(new Date());
+                }
+            });
+
+        return () => {
+            if (window.Echo) window.Echo.leaveChannel('deliveries');
+        };
+    }, []);
+
+    // Fallback polling (every 30 seconds instead of 10)
     useEffect(() => {
         const interval = setInterval(() => {
             router.reload({ only: ['stats', 'recentDeliveries'], preserveScroll: true, preserveState: true });
             setLastUpdated(new Date());
-        }, 10000);
+        }, 30000);
 
         return () => clearInterval(interval);
     }, []);
@@ -531,80 +749,21 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
         { label: 'Cancelled', value: stats?.cancelled_deliveries || 0, icon: 'close', color: 'danger', trend: -2, trendUp: false },
     ];
 
-    // Generate real, dynamic activities based on actual deliveries in the database
-    const activities = (recentDeliveries || []).map((delivery, index) => {
-        const waybill = delivery.waybill || 'N/A';
-        const clientName = delivery.client?.client_name || 'Customer';
-        const driverName = delivery.driver?.user ? `${delivery.driver.user.firstname} ${delivery.driver.user.lastname || ''}` : 'Unassigned';
-        const status = delivery.status || 'pending';
-
-        const statusLabelMap = {
-            delivered: 'Completed',
-            in_transit: 'Active',
-            assigned: 'Assigned',
-            pending: 'Requested',
-            cancelled: 'Rejected'
-        };
-
-        const statusColorMap = {
-            delivered: 'bg-emerald-50 text-emerald-700 border border-emerald-100/60',
-            in_transit: 'bg-amber-50 text-amber-700 border border-amber-100/60',
-            assigned: 'bg-blue-50 text-blue-700 border border-blue-100/60',
-            pending: 'bg-slate-100 text-slate-700 border border-slate-200',
-            cancelled: 'bg-red-50 text-red-700 border border-red-100/60'
-        };
-
-        const iconMap = {
-            delivered: 'check',
-            in_transit: 'truck',
-            assigned: 'tracking',
-            pending: 'dashboard',
-            cancelled: 'close'
-        };
-
-        const descriptionMap = {
-            delivered: `Successfully delivered to ${clientName}.`,
-            in_transit: `Package in transit with driver ${driverName}.`,
-            assigned: `Assigned to ${driverName} for dispatch.`,
-            pending: `New request from ${clientName} pending review.`,
-            cancelled: `Delivery request rejected or cancelled.`
-        };
-
-        // Determine a relative difference time based on when it was updated/created
-        const timeDiff = index === 0 ? 'Just now' : `${index * 8}m ago`;
-
-        return {
-            icon: iconMap[status] || 'dashboard',
-            title: `Waybill #${waybill} Update`,
-            description: descriptionMap[status] || `Status updated to ${status}.`,
-            time: timeDiff,
-            status: statusLabelMap[status] || status.toUpperCase(),
-            statusColor: statusColorMap[status] || 'bg-slate-100 text-slate-700 border border-slate-200'
-        };
-    });
-
-    // Fallback in case recentDeliveries is empty, showing general system alerts
-    if (activities.length === 0) {
-        activities.push(
-            { icon: 'dashboard', title: 'System Operational', description: 'All background fleet and route engines are online.', time: '1m ago', status: 'Online', statusColor: 'bg-emerald-50 text-emerald-700 border border-emerald-100/60' },
-            { icon: 'users', title: 'Capacity Report', description: `${stats?.total_drivers || 0} active drivers, ${stats?.total_trucks || 0} fleet trucks.`, time: '5m ago', status: 'System', statusColor: 'bg-indigo-50 text-indigo-700 border border-indigo-100/60' }
-        );
-    }
-
     return (
         <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-[#F5F7FB]'}`}>
             <Head title="Admin Dashboard" />
 
             <div className="flex">
                 {/* Sidebar */}
-                <Sidebar activeMenu="dashboard" notificationCount={notificationCount} />
+                <Sidebar activeMenu="dashboard" notificationCount={liveNotifications.length} />
 
                 {/* Main Content */}
                 <div className="flex-1 ml-[260px]">
                     {/* Header */}
                     <Header
                         authUser={authUser}
-                        notificationCount={notificationCount}
+                        liveNotifications={liveNotifications}
+                        setLiveNotifications={setLiveNotifications}
                         darkMode={darkMode}
                         onDarkModeToggle={() => setDarkMode(!darkMode)}
                     />
@@ -699,28 +858,9 @@ export default function Dashboard({ authUser, stats, recentDeliveries, notificat
                             </div>
                         </div>
 
-                        {/* Activity Panel + Table */}
-                        <div className="grid grid-cols-3 gap-4">
-                            {/* Live Activity Panel */}
-                            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 h-[360px] overflow-hidden">
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="text-sm font-semibold text-slate-900">Live Activity</h3>
-                                    <span className="flex items-center gap-1 text-[10px] text-emerald-600">
-                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                        Live
-                                    </span>
-                                </div>
-                                <div className="overflow-y-auto h-[calc(100%-32px)] pr-1">
-                                    {activities.map((activity, index) => (
-                                        <ActivityItem key={index} {...activity} />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Recent Deliveries Table - Takes 2 columns */}
-                            <div className="col-span-2">
-                                <RecentDeliveriesTable deliveries={recentDeliveries} />
-                            </div>
+                        {/* Fleet Performance Board */}
+                        <div className="mt-6 flex flex-col h-[500px]">
+                            <FleetPerformanceBoard data={fleetPerformance} />
                         </div>
 
                         {/* Footer */}

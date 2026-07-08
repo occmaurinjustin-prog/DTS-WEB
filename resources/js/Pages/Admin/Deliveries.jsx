@@ -12,6 +12,19 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+    
+    // Initialize notifications from pendingDeliveries
+    const [liveNotifications, setLiveNotifications] = useState(
+        (pendingDeliveries || []).map(d => ({
+            id: d.delivery_id,
+            waybill: d.waybill,
+            client_name: d.client ? d.client.client_name : 'Unknown Client',
+            status: d.delivery_status,
+            created_at: d.created_at
+        }))
+    );
+    
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [sentToDriver, setSentToDriver] = useState(new Set()); // Track deliveries sent to driver
     const [currentPage, setCurrentPage] = useState(1);
     
@@ -28,6 +41,17 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
         }, 500);
         return () => clearTimeout(handler);
     }, [searchTerm]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (isDropdownOpen && !e.target.closest('.notifications-dropdown-container')) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isDropdownOpen]);
 
     // Fetch Deliveries function
     const fetchDeliveries = async ({ queryKey }) => {
@@ -75,6 +99,9 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
             })
             .listen('DeliveryCreated', (e) => {
                 console.log('New delivery created via WebSocket', e);
+                if (e.deliveryData) {
+                    setLiveNotifications(prev => [e.deliveryData, ...prev]);
+                }
                 router.reload({
                     only: ['pendingDeliveries'],
                     preserveScroll: true,
@@ -270,7 +297,62 @@ export default function Deliveries({ authUser, pendingDeliveries, flash }) {
                         <h1 className="text-2xl font-bold text-slate-900">Deliveries</h1>
                         <p className="text-slate-500 mt-0.5 text-sm">Manage delivery requests and tracking</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-4">
+                        {/* Notifications Dropdown */}
+                        <div className="relative notifications-dropdown-container">
+                            <button 
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="relative w-10 h-10 bg-white shadow-sm border border-slate-200 hover:bg-slate-50 rounded-xl flex items-center justify-center transition-all"
+                            >
+                                <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                </svg>
+                                {liveNotifications.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                                        {liveNotifications.length > 9 ? '9+' : liveNotifications.length}
+                                    </span>
+                                )}
+                            </button>
+                            
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[60]">
+                                    <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
+                                        <h3 className="font-semibold text-slate-900">Notifications</h3>
+                                        {liveNotifications.length > 0 && (
+                                            <button onClick={() => setLiveNotifications([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Clear All</button>
+                                        )}
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                        {liveNotifications.length === 0 ? (
+                                            <p className="px-4 py-6 text-sm text-slate-500 text-center">No new notifications</p>
+                                        ) : (
+                                            liveNotifications.map((notif, idx) => (
+                                                <button 
+                                                    key={idx} 
+                                                    onClick={() => {
+                                                        setIsDropdownOpen(false);
+                                                        router.visit('/admin/deliveries');
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 flex gap-3 items-start block"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-900">New Request: #{notif.waybill}</p>
+                                                        <p className="text-xs text-slate-600 mt-0.5">Client: {notif.client_name}</p>
+                                                        <p className="text-[10px] text-slate-400 mt-1">{new Date(notif.created_at).toLocaleTimeString()}</p>
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

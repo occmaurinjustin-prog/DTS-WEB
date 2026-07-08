@@ -5,6 +5,8 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\OfficeStaff;
 use App\Http\Middleware\OperationalManager;
+use App\Http\Middleware\PurchaserMiddleware;
+use App\Http\Middleware\BillingMiddleware;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\ApiAuth;
@@ -30,6 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         'admin' => AdminMiddleware::class,
         'office_staff' => OfficeStaff::class,
         'operational_manager' => OperationalManager::class,
+        'purchaser' => PurchaserMiddleware::class,
+        'billing' => BillingMiddleware::class,
         'auth' => Authenticate::class,
         'guest' => RedirectIfAuthenticated::class,
         'auth.api' => ApiAuth::class,
