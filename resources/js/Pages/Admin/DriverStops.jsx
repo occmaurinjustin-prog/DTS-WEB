@@ -53,6 +53,7 @@ export default function DriverStops({ authUser }) {
     const formatDuration = (minutes) => {
         if (!minutes && minutes !== 0) return 'Ongoing';
         const mins = Math.round(minutes);
+        if (mins === 0) return '< 1m';
         if (mins < 60) return `${mins}m`;
         const h = Math.floor(mins / 60);
         const m = mins % 60;
@@ -64,6 +65,25 @@ export default function DriverStops({ authUser }) {
         const stopDate = parseLocalDate(stoppedAt);
         const diffMs = Math.max(0, currentTime.getTime() - stopDate.getTime());
         const totalSeconds = Math.floor(diffMs / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        return `${m}m ${s}s`;
+    };
+
+    const formatCompletedDuration = (stoppedAt, resumedAt, fallbackMinutes) => {
+        if (!stoppedAt || !resumedAt) return formatDuration(fallbackMinutes);
+        const stopDate = parseLocalDate(stoppedAt);
+        const resumeDate = parseLocalDate(resumedAt);
+        const diffMs = Math.max(0, resumeDate.getTime() - stopDate.getTime());
+        const totalSeconds = Math.floor(diffMs / 1000);
+        
+        if (totalSeconds < 60) {
+            return `${totalSeconds}s`;
+        }
+        
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
         const s = totalSeconds % 60;
@@ -221,7 +241,7 @@ export default function DriverStops({ authUser }) {
                                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${stop.resumed_at ? 'bg-slate-100 text-slate-800' : 'bg-red-100 text-red-800 font-bold shadow-sm ring-1 ring-red-200'
                                                     }`}>
                                                     {stop.resumed_at && stop.duration_minutes !== null ? (
-                                                        formatDuration(stop.duration_minutes)
+                                                        formatCompletedDuration(stop.stopped_at, stop.resumed_at, stop.duration_minutes)
                                                     ) : (
                                                         <span className="flex items-center gap-1.5">
                                                             <span className="relative flex h-2 w-2">

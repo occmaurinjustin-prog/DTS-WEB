@@ -393,16 +393,61 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             // Create Mapbox map
             map.current = new mapboxgl.Map({
                 container: mapContainer.current,
-                style: 'mapbox://styles/mapbox/outdoors-v11',
+                style: 'mapbox://styles/mapbox/outdoors-v12', // Updated to v12 for better 3D support
                 center: [120.9842, 14.5995], // Manila coordinates
-                zoom: 11
+                zoom: 11,
+                pitch: is3DViewRef.current ? 65 : 0,
+                bearing: 0,
+                antialias: true // Required for smooth 3D rendering
             });
 
             // Add controls
-            map.current.addControl(new mapboxgl.NavigationControl());
+            map.current.addControl(new mapboxgl.NavigationControl({
+                visualizePitch: true // Adds 3D toggle to the control
+            }));
 
             map.current.on('load', () => {
                 console.log('Mapbox map loaded successfully');
+
+                // Insert the 3D building layer beneath any symbol layer.
+                const layers = map.current.getStyle().layers;
+                const labelLayerId = layers.find(
+                    (layer) => layer.type === 'symbol' && layer.layout['text-field']
+                )?.id;
+
+                map.current.addLayer(
+                    {
+                        'id': '3d-buildings',
+                        'source': 'composite',
+                        'source-layer': 'building',
+                        'filter': ['==', 'extrude', 'true'],
+                        'type': 'fill-extrusion',
+                        'minzoom': 15,
+                        'paint': {
+                            'fill-extrusion-color': '#e2e8f0', // Slate 200 to match theme
+                            'fill-extrusion-height': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                15,
+                                0,
+                                15.05,
+                                ['get', 'height']
+                            ],
+                            'fill-extrusion-base': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                15,
+                                0,
+                                15.05,
+                                ['get', 'min_height']
+                            ],
+                            'fill-extrusion-opacity': 0.85
+                        }
+                    },
+                    labelLayerId
+                );
 
                 map.current.resize();
 
@@ -438,7 +483,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             // DRIVER MARKER
             const driverMarker = new mapboxgl.Marker({
                 element: createDriverMarker(driver),
-                anchor: 'center'
+                anchor: 'center',
+                pitchAlignment: 'map',
+                rotationAlignment: 'map'
             })
                 .setLngLat([
                     driver.currentLocation.lng,
@@ -479,7 +526,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                 // Create new marker if it doesn't exist
                 const driverMarker = new mapboxgl.Marker({
                     element: createDriverMarker(driver),
-                    anchor: 'center'
+                    anchor: 'center',
+                    pitchAlignment: 'map',
+                    rotationAlignment: 'map'
                 })
                     .setLngLat([
                         driver.currentLocation.lng,
@@ -552,7 +601,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
         // DRIVER MARKER
         const driverMarker = new mapboxgl.Marker({
             element: createDriverMarker(driver),
-            anchor: 'center'
+            anchor: 'center',
+            pitchAlignment: 'map',
+            rotationAlignment: 'map'
         })
             .setLngLat([
                 driver.currentLocation.lng,
@@ -576,7 +627,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             console.log('Creating pickup marker at:', driver.pickup.lat, driver.pickup.lng);
             pickupMarker = new mapboxgl.Marker({
                 element: createPickupMarker(),
-                anchor: 'center'
+                anchor: 'bottom',
+                pitchAlignment: 'map',
+                rotationAlignment: 'map'
             })
             .setLngLat([
                 driver.pickup.lng,
@@ -596,7 +649,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             console.log('Creating destination marker at:', driver.destination.lat, driver.destination.lng);
             destinationMarker = new mapboxgl.Marker({
                 element: createDestinationMarker(),
-                anchor: 'center'
+                anchor: 'bottom',
+                pitchAlignment: 'map',
+                rotationAlignment: 'map'
             })
             .setLngLat([
                 driver.destination.lng,
@@ -1252,7 +1307,9 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
                                 if (map.current) {
                                     map.current.easeTo({
                                         pitch: nextState ? 65 : 0,
-                                        duration: 1000
+                                        bearing: nextState ? (map.current.getBearing() === 0 ? -20 : map.current.getBearing()) : 0,
+                                        duration: 1500,
+                                        essential: true
                                     });
                                 }
                             }}

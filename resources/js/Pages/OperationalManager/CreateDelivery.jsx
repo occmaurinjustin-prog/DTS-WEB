@@ -459,7 +459,7 @@ export default function CreateDelivery({ authUser, clients, drivers, trucks, fla
                                             <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                             <div>
                                                 <p className="text-xs font-semibold text-slate-500">Client</p>
-                                                <p className="text-slate-900 font-bold mt-0.5">{clients?.find(c => c.id == data.client_id)?.client_name || 'Not selected'}</p>
+                                                <p className="text-slate-900 font-bold mt-0.5">{clients?.find(c => (c.client_id || c.id) == data.client_id)?.client_name || 'Not selected'}</p>
                                             </div>
                                         </div>
 

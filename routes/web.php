@@ -193,6 +193,8 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
         Route::post('/deliveries', [OperationalManagerDashboardController::class, 'storeDelivery'])->name('deliveries.store');
         Route::get('/recent-deliveries', [OperationalManagerDashboardController::class, 'recentDeliveries'])->name('recent_deliveries');
         Route::get('/tracking', [OperationalManagerDashboardController::class, 'tracking'])->name('tracking');
+        Route::get('/replay-center', [OperationalManagerDashboardController::class, 'replayCenter'])->name('replay_center');
+        Route::get('/api/driver-path/{driverId}', [OperationalManagerDashboardController::class, 'apiDriverPath']);
         // Route::get('/profile', [OperationalManagerDashboardController::class, 'profile'])->name('profile');
         
         // Client management routes

@@ -91,6 +91,7 @@ class OperationalManagerDashboardController extends Controller
                 'username' => $driver->user->username,
                 'phone' => $driver->user->contact_number,
                 'is_active' => $driver->user->is_active,
+                'profile_image' => $driver->user->profile_image,
             ];
         });
 
@@ -166,7 +167,7 @@ class OperationalManagerDashboardController extends Controller
             'driver_id' => 'required|exists:drivers,driver_id',
             'truck_id' => 'nullable|exists:trucks,truck_id',
             'item_description' => 'required|string|max:500',
-            'waybill' => 'required|string|max:50',
+            'waybill' => 'required|string|max:50|unique:deliveries,waybill',
             'weight_tons' => 'required|numeric|min:0.01',
             'pickup_address' => 'required|string|max:500',
             'delivery_address' => 'required|string|max:500',
@@ -366,5 +367,48 @@ class OperationalManagerDashboardController extends Controller
             'pendingDeliveries' => $pendingDeliveries,
             'drivers' => $drivers,
         ]);
+    }
+
+    public function replayCenter()
+    {
+        $user = Auth::user();
+        $userId = $user->user_id;
+
+        // Fetch only completed deliveries that might have GPS tracking data
+        $deliveries = \App\Models\Delivery::with(['client', 'driver.user', 'truck'])
+            ->where('user_id', $userId)
+            ->where('delivery_status', 'delivered')
+            ->orderBy('delivered_at', 'desc')
+            ->get();
+
+        return inertia('OperationalManager/ReplayCenter', [
+            'authUser' => $user,
+            'deliveries' => $deliveries,
+        ]);
+    }
+
+    public function apiDriverPath(Request $request, $driverId)
+    {
+        try {
+            $query = \App\Models\DriverLocationHistory::where('driver_id', $driverId)
+                ->orderBy('recorded_at', 'asc');
+
+            if ($request->has('delivery_id')) {
+                $query->where('delivery_id', $request->delivery_id);
+            } else {
+                $hours = $request->get('hours', 8);
+                $query->where('recorded_at', '>=', now()->subHours($hours));
+            }
+
+            $history = $query->get(['latitude', 'longitude', 'speed', 'was_offline', 'recorded_at']);
+
+            return response()->json([
+                'success' => true,
+                'path'    => $history,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching OM location history: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error fetching path'], 500);
+        }
     }
 }

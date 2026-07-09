@@ -67,9 +67,13 @@ export default function Drivers({ drivers, authUser }) {
                                         <tr key={driver.id} className="group hover:bg-slate-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm border border-slate-800">
-                                                        <span>{driver.name?.charAt(0)}</span>
-                                                    </div>
+                                                    {driver.profile_image ? (
+                                                        <img src={driver.profile_image.startsWith('http') || driver.profile_image.startsWith('/') ? driver.profile_image : `/storage/${driver.profile_image}`} alt="Profile" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-sm border border-slate-800">
+                                                            <span>{driver.name?.charAt(0)}</span>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="text-sm font-semibold text-slate-900">{driver.name}</div>
                                                         <div className="text-[10px] text-slate-400">@{driver.username}</div>
