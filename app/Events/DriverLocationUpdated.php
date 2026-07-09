@@ -21,11 +21,12 @@ class DriverLocationUpdated implements ShouldBroadcastNow
     public $status;
     public $isGpsEnabled;
     public $deliveryStatus;
+    public $wasOffline;
 
     /**
      * Create a new event instance.
      */
-    public function __construct($driverId, $lat, $lng, $speed, $status, $isGpsEnabled, $deliveryStatus = null)
+    public function __construct($driverId, $lat, $lng, $speed, $status, $isGpsEnabled, $deliveryStatus = null, $wasOffline = false)
     {
         $this->id = $driverId;
         $this->lat = (float) $lat;
@@ -34,6 +35,7 @@ class DriverLocationUpdated implements ShouldBroadcastNow
         $this->status = $status;
         $this->isGpsEnabled = $isGpsEnabled;
         $this->deliveryStatus = $deliveryStatus;
+        $this->wasOffline = $wasOffline;
     }
 
     /**

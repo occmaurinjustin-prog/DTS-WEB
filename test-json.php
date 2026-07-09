@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; $app = require 'bootstrap/app.php'; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); $h = \App\Models\DriverLocationHistory::where('delivery_id', 66)->where('was_offline', true)->first(); echo json_encode($h);

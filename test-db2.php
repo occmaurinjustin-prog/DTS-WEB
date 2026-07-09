@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; $app = require 'bootstrap/app.php'; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); $h = \App\Models\DriverLocationHistory::where('was_offline', true)->get(); echo 'Total Offline points in DB: ' . count($h) . PHP_EOL; foreach($h as $p) { echo 'Delivery: ' . $p->delivery_id . PHP_EOL; } 

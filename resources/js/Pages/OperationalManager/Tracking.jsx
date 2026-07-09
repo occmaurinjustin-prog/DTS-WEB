@@ -223,7 +223,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
             name: driver.driver,
             plateNumber: driver.plate,
             status: driver.status,
-            speed: driver.speed,
+            speed: Math.round(driver.speed * 3.6),
             lastUpdated: driver.lastUpdate,
             pickup: { 
                 lat: Number(driver.delivery?.pickup_latitude || driver.delivery?.pickup_lat) || 14.5995, 
@@ -266,7 +266,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                 name: driver.driver,
                 plateNumber: driver.plate,
                 status: driver.status,
-                speed: driver.speed,
+                speed: Math.round(driver.speed * 3.6),
                 lastUpdated: driver.lastUpdate,
                 pickup: { 
                     lat: Number(driver.delivery?.pickup_latitude || driver.delivery?.pickup_lat) || 14.5995, 
@@ -311,7 +311,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                         const updatedDriver = {
                             ...newList[index],
                             currentLocation: { lat: e.lat, lng: e.lng },
-                            speed: e.speed,
+                            speed: Math.round(e.speed * 3.6),
                             status: e.status,
                             isGpsEnabled: e.isGpsEnabled,
                             lastUpdated: 'Just now'
@@ -339,11 +339,14 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
 
                                 const last = lastRoutePosition.current[e.id];
 
-                                if (!last) {
+                                if (!last || e.wasOffline) {
                                     lastRoutePosition.current[e.id] = {
                                         lat: e.lat,
                                         lng: e.lng
                                     };
+                                    if (e.wasOffline) {
+                                        fetchAndDrawPath(e.id);
+                                    }
                                     drawRoute(updatedDriver);
                                 } else {
                                     const moved = Math.abs(last.lat - e.lat) + Math.abs(last.lng - e.lng);
@@ -733,15 +736,56 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
             const data = await res.json();
             if (!data.success || !data.path?.length) return;
 
-            // Split online vs offline segments
-            const onlineCoords  = data.path.filter(p => !p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
-            const offlineCoords = data.path.filter(p => p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
+            const processed = [];
+            for (let i = 0; i < data.path.length; i++) {
+                const p = data.path[i];
+                if (i > 0) {
+                    const prevP = data.path[i - 1];
+                    const t1 = new Date(prevP.recorded_at).getTime();
+                    const t2 = new Date(p.recorded_at).getTime();
+                    const diffSec = (t2 - t1) / 1000;
+                    
+                    if (diffSec > 20) {
+                        const numInterpolated = Math.floor(diffSec / 10) - 1;
+                        for (let j = 1; j <= numInterpolated; j++) {
+                            const fraction = j / (numInterpolated + 1);
+                            processed.push({
+                                ...p,
+                                latitude: Number(prevP.latitude) + (Number(p.latitude) - Number(prevP.latitude)) * fraction,
+                                longitude: Number(prevP.longitude) + (Number(p.longitude) - Number(prevP.longitude)) * fraction,
+                                recorded_at: new Date(t1 + (diffSec * fraction * 1000)).toISOString(),
+                                was_offline: true,
+                            });
+                        }
+                        p.was_offline = true;
+                    }
+                }
+                processed.push(p);
+            }
+
+            const refinedFeatures = [];
+            for (let i = 1; i < processed.length; i++) {
+                const p1 = processed[i - 1];
+                const p2 = processed[i];
+                const c1 = [Number(p1.longitude), Number(p1.latitude)];
+                const c2 = [Number(p2.longitude), Number(p2.latitude)];
+                // If p2 was recorded offline, the travel from p1 to p2 was offline
+                const isOffline = p2.was_offline == 1 || p2.was_offline === true || p2.was_offline === 'true';
+                refinedFeatures.push({
+                    type: 'Feature',
+                    properties: { is_offline: isOffline },
+                    geometry: { type: 'LineString', coordinates: [c1, c2] }
+                });
+            }
+
+            const onlineFeatures = refinedFeatures.filter(f => !f.properties.is_offline);
+            const offlineFeatures = refinedFeatures.filter(f => f.properties.is_offline);
 
             // Draw solid blue line for online points
-            if (onlineCoords.length >= 2) {
+            if (onlineFeatures.length > 0) {
                 map.current.addSource('driver-path-online', {
                     type: 'geojson',
-                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: onlineCoords } }
+                    data: { type: 'FeatureCollection', features: onlineFeatures }
                 });
                 map.current.addLayer({
                     id: 'driver-path-online',
@@ -753,10 +797,10 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
             }
 
             // Draw dashed orange line for offline (queued) points
-            if (offlineCoords.length >= 2) {
+            if (offlineFeatures.length > 0) {
                 map.current.addSource('driver-path-offline', {
                     type: 'geojson',
-                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: offlineCoords } }
+                    data: { type: 'FeatureCollection', features: offlineFeatures }
                 });
                 map.current.addLayer({
                     id: 'driver-path-offline',
@@ -772,7 +816,7 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
                 });
             }
 
-            console.log(`Historical path drawn: ${onlineCoords.length} online, ${offlineCoords.length} offline points`);
+            console.log(`Historical path drawn: ${onlineFeatures.length} online segments, ${offlineFeatures.length} offline segments`);
         } catch (e) {
             console.warn('Could not load historical path:', e);
         }
@@ -893,7 +937,10 @@ export default function Tracking({ authUser, pendingDeliveries, drivers }) {
 
         const route = await getDirections(coordinates);
 
-        if (!route) return;
+        if (!route) {
+            drawStraightLineRoute(driver, routeId);
+            return;
+        }
 
         // Ignore old API responses
         if (latestRouteRequest.current[driver.id] !== requestId) {

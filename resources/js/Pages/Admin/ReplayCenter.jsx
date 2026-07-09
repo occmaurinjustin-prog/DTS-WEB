@@ -111,7 +111,39 @@ export default function ReplayCenter({ authUser, deliveries }) {
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.path) {
-                    setPathData(data.path);
+                    // Interpolate points for large time gaps to ensure smooth playback and detect unrecorded offline periods
+                    const processed = [];
+                    for (let i = 0; i < data.path.length; i++) {
+                        const p = data.path[i];
+                        if (i > 0) {
+                            const prevP = data.path[i - 1];
+                            const t1 = new Date(prevP.recorded_at).getTime();
+                            const t2 = new Date(p.recorded_at).getTime();
+                            const diffSec = (t2 - t1) / 1000;
+                            
+                            // Normal interval is ~10s. If gap > 20s, they lost signal or app slept.
+                            if (diffSec > 20) {
+                                // Add 1 point every 10 seconds of gap
+                                const numInterpolated = Math.floor(diffSec / 10) - 1;
+                                for (let j = 1; j <= numInterpolated; j++) {
+                                    const fraction = j / (numInterpolated + 1);
+                                    processed.push({
+                                        ...p,
+                                        latitude: Number(prevP.latitude) + (Number(p.latitude) - Number(prevP.latitude)) * fraction,
+                                        longitude: Number(prevP.longitude) + (Number(p.longitude) - Number(prevP.longitude)) * fraction,
+                                        recorded_at: new Date(t1 + (diffSec * fraction * 1000)).toISOString(),
+                                        was_offline: true, // Force gap to be offline (orange)
+                                        speed: Number(prevP.speed) + (Number(p.speed) - Number(prevP.speed)) * fraction,
+                                        heading: Number(prevP.heading)
+                                    });
+                                }
+                                // Ensure the arrival point is also treated as offline so the final segment is orange
+                                p.was_offline = true;
+                            }
+                        }
+                        processed.push(p);
+                    }
+                    setPathData(processed);
                 }
             })
             .catch(err => console.error('Failed to fetch path:', err))
@@ -122,8 +154,25 @@ export default function ReplayCenter({ authUser, deliveries }) {
     useEffect(() => {
         if (!mapLoaded || !map.current || !map.current.isStyleLoaded() || pathData.length === 0 || !selectedDelivery) return;
 
-        const onlineCoords = pathData.filter(p => !p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
-        const offlineCoords = pathData.filter(p => p.was_offline).map(p => [Number(p.longitude), Number(p.latitude)]);
+        // The offline gap (orange) should take precedence. If a segment was travelled while offline, 
+        // the segment connecting them should be orange.
+        const refinedFeatures = [];
+        for (let i = 1; i < pathData.length; i++) {
+            const p1 = pathData[i - 1];
+            const p2 = pathData[i];
+            const c1 = [Number(p1.longitude), Number(p1.latitude)];
+            const c2 = [Number(p2.longitude), Number(p2.latitude)];
+            // If p2 was recorded offline, the travel from p1 to p2 was offline
+            const isOffline = p2.was_offline == 1 || p2.was_offline === true || p2.was_offline === 'true';
+            refinedFeatures.push({
+                type: 'Feature',
+                properties: { is_offline: isOffline },
+                geometry: { type: 'LineString', coordinates: [c1, c2] }
+            });
+        }
+
+        const onlineFeatures = refinedFeatures.filter(f => !f.properties.is_offline);
+        const offlineFeatures = refinedFeatures.filter(f => f.properties.is_offline);
 
         // Clear old layers
         ['route-online', 'route-offline'].forEach(layer => {
@@ -132,10 +181,10 @@ export default function ReplayCenter({ authUser, deliveries }) {
         });
 
         // Draw online path
-        if (onlineCoords.length >= 2) {
+        if (onlineFeatures.length > 0) {
             map.current.addSource('route-online', {
                 type: 'geojson',
-                data: { type: 'Feature', geometry: { type: 'LineString', coordinates: onlineCoords } }
+                data: { type: 'FeatureCollection', features: onlineFeatures }
             });
             map.current.addLayer({
                 id: 'route-online',
@@ -147,10 +196,10 @@ export default function ReplayCenter({ authUser, deliveries }) {
         }
 
         // Draw offline path
-        if (offlineCoords.length >= 2) {
+        if (offlineFeatures.length > 0) {
             map.current.addSource('route-offline', {
                 type: 'geojson',
-                data: { type: 'Feature', geometry: { type: 'LineString', coordinates: offlineCoords } }
+                data: { type: 'FeatureCollection', features: offlineFeatures }
             });
             map.current.addLayer({
                 id: 'route-offline',
@@ -289,19 +338,21 @@ export default function ReplayCenter({ authUser, deliveries }) {
         marker.current.setLngLat([Number(pt.longitude), Number(pt.latitude)]);
         
         // Handle rotation for the inner truck element
-        if (progressIndex > 0) {
-            const prevPt = pathData[progressIndex - 1];
-            // Only rotate if the points are different to avoid jumping to 0
-            if (prevPt.latitude !== pt.latitude || prevPt.longitude !== pt.longitude) {
-                const bearing = calculateBearing(
-                    Number(prevPt.latitude), Number(prevPt.longitude),
-                    Number(pt.latitude), Number(pt.longitude)
-                );
-                
-                const innerEl = markerEl.querySelector('.truck-icon-inner');
-                if (innerEl) {
-                    // SVG navigation arrow faces up (North). Mapbox bearing 0 is North.
-                    innerEl.style.transform = `rotate(${bearing}deg)`;
+        if (progressIndex > 0 || pt.heading !== undefined) {
+            const innerEl = markerEl.querySelector('.truck-icon-inner');
+            if (innerEl) {
+                if (pt.heading !== undefined && pt.heading !== null && pt.heading >= 0) {
+                    innerEl.style.transform = `rotate(${pt.heading}deg)`;
+                } else if (progressIndex > 0) {
+                    const prevPt = pathData[progressIndex - 1];
+                    // Only rotate if the points are different to avoid jumping to 0
+                    if (prevPt.latitude !== pt.latitude || prevPt.longitude !== pt.longitude) {
+                        const bearing = calculateBearing(
+                            Number(prevPt.latitude), Number(prevPt.longitude),
+                            Number(pt.latitude), Number(pt.longitude)
+                        );
+                        innerEl.style.transform = `rotate(${bearing}deg)`;
+                    }
                 }
             }
         }
@@ -458,7 +509,7 @@ export default function ReplayCenter({ authUser, deliveries }) {
 
                                     <div className="text-right bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-xl border border-slate-200/50 shadow-sm">
                                         <div className="text-sm font-black text-slate-800 flex items-center justify-end gap-2.5 tracking-tight">
-                                            {currentPoint?.speed || 0} <span className="text-xs font-semibold text-slate-400">KM/H</span>
+                                            {Math.round((currentPoint?.speed || 0) * 3.6)} <span className="text-xs font-semibold text-slate-400">KM/H</span>
                                             <span className={`w-2 h-2 rounded-full shadow-sm ${currentPoint?.was_offline ? 'bg-orange-500 shadow-orange-500/50' : 'bg-emerald-500 shadow-emerald-500/50'}`}></span>
                                         </div>
                                         <div className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">

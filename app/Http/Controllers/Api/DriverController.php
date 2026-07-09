@@ -289,7 +289,8 @@ class DriverController extends Controller
                 $driver->current_speed,
                 $status,
                 $driver->is_gps_enabled,
-                $activeDelivery?->delivery_status
+                $activeDelivery?->delivery_status,
+                false // Normal live update, not from offline batch
             ));
 
             return response()->json([
@@ -357,26 +358,35 @@ class DriverController extends Controller
 
             \App\Models\DriverLocationHistory::insert($records);
 
-            // Update driver's live location to the most recent point
-            $latest = collect($request->locations)->sortByDesc('recorded_at')->first();
-            if ($latest) {
-                $driver->current_latitude     = $latest['latitude'];
-                $driver->current_longitude    = $latest['longitude'];
-                $driver->current_speed        = $latest['speed'] ?? 0;
-                $driver->last_location_update = now();
-                $driver->save();
+            // Update driver's live location ONLY if the batch point is actually the newest known point
+            $latestBatchPoint = collect($request->locations)->sortByDesc('recorded_at')->first();
+            if ($latestBatchPoint) {
+                $absoluteLatest = \App\Models\DriverLocationHistory::where('driver_id', $driver->driver_id)
+                    ->orderBy('recorded_at', 'desc')
+                    ->first();
 
-                $status = ($latest['speed'] ?? 0) > 5 ? 'moving' : 'stopped';
+                // If the absolute newest point in the database matches our batch's newest point,
+                // it means no newer live updates have come in, so we update the live location.
+                if ($absoluteLatest && \Carbon\Carbon::parse($absoluteLatest->recorded_at)->eq(\Carbon\Carbon::parse($latestBatchPoint['recorded_at']))) {
+                    $driver->current_latitude     = $latestBatchPoint['latitude'];
+                    $driver->current_longitude    = $latestBatchPoint['longitude'];
+                    $driver->current_speed        = $latestBatchPoint['speed'] ?? 0;
+                    $driver->last_location_update = now(); // Use server time for UI diffForHumans
+                    $driver->save();
 
-                event(new \App\Events\DriverLocationUpdated(
-                    $driver->driver_id,
-                    $latest['latitude'],
-                    $latest['longitude'],
-                    $latest['speed'] ?? 0,
-                    $status,
-                    $latest['is_gps_enabled'] ?? true,
-                    $activeDelivery?->delivery_status
-                ));
+                    $status = ($latestBatchPoint['speed'] ?? 0) > 5 ? 'moving' : 'stopped';
+
+                    event(new \App\Events\DriverLocationUpdated(
+                        $driver->driver_id,
+                        $latestBatchPoint['latitude'],
+                        $latestBatchPoint['longitude'],
+                        $latestBatchPoint['speed'] ?? 0,
+                        $status,
+                        $latestBatchPoint['is_gps_enabled'] ?? true,
+                        $activeDelivery?->delivery_status,
+                        true // Yes, this came from an offline batch
+                    ));
+                }
             }
 
             Log::info('Offline batch location upload', [
@@ -417,7 +427,7 @@ class DriverController extends Controller
                 $query->where('recorded_at', '>=', now()->subHours($hours));
             }
 
-            $history = $query->get(['latitude', 'longitude', 'speed', 'was_offline', 'recorded_at']);
+            $history = $query->get(['latitude', 'longitude', 'speed', 'heading', 'was_offline', 'recorded_at']);
 
             return response()->json([
                 'success' => true,
