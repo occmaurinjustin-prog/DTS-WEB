@@ -62,9 +62,6 @@ class RescueDispatchController extends Controller
         $validated = $request->validate([
             'mechanic_id' => 'required|exists:users,user_id',
             'notes' => 'nullable|string',
-            'parts' => 'nullable|array',
-            'parts.*.Inventory_id' => 'required|exists:inventory,Inventory_id',
-            'parts.*.quantity' => 'required|integer|min:1',
         ]);
 
         $rescue = RescueRequest::findOrFail($id);
@@ -78,31 +75,7 @@ class RescueDispatchController extends Controller
 
         $rescue->save();
 
-        if (isset($validated['parts']) && count($validated['parts']) > 0) {
-            foreach ($validated['parts'] as $partData) {
-                $inventory = \App\Models\Inventory::findOrFail($partData['Inventory_id']);
-                
-                if ($inventory->quantity < $partData['quantity']) {
-                    return redirect()->back()->with('error', "Not enough stock for {$inventory->part_name}. Available: {$inventory->quantity}");
-                }
 
-                // Deduct inventory
-                $inventory->quantity -= $partData['quantity'];
-                $inventory->save();
-
-                // Check if already attached
-                $existing = $rescue->parts()->where('inventory.Inventory_id', $partData['Inventory_id'])->first();
-                
-                if ($existing) {
-                    // Update pivot quantity
-                    $newQuantity = $existing->pivot->quantity + $partData['quantity'];
-                    $rescue->parts()->updateExistingPivot($partData['Inventory_id'], ['quantity' => $newQuantity]);
-                } else {
-                    // Attach new part
-                    $rescue->parts()->attach($partData['Inventory_id'], ['quantity' => $partData['quantity']]);
-                }
-            }
-        }
 
         return redirect()->back()->with('success', 'Mechanic assigned successfully.');
     }

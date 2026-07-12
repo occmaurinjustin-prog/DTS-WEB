@@ -235,11 +235,6 @@ export default function Users({ userStats, authUser, trucks }) {
                     </div>
                 )}
 
-                {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">User Registry</h1>
-                    <p className="text-slate-500 mt-0.5 text-sm">Control administrative roles, field operators, and secure facial scan profiles</p>
-                </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

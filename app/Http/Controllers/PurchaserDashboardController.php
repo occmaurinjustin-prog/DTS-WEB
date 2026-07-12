@@ -11,16 +11,35 @@ class PurchaserDashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Basic stats for Purchaser dashboard
+        $partRequests = \App\Models\PartRequest::with(['mechanic', 'inventory'])
+            ->whereIn('status', ['approved', 'purchased', 'completed'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $stats = [
-            'total_orders' => 0,
-            'pending_orders' => 0,
-            'approved_orders' => 0,
+            'total_orders' => $partRequests->count(),
+            'pending_purchase' => $partRequests->where('status', 'approved')->count(),
+            'purchased' => $partRequests->where('status', 'purchased')->count(),
         ];
 
         return inertia('Purchaser/Dashboard', [
             'authUser' => $user,
             'stats' => $stats,
+        ]);
+    }
+
+    public function orders()
+    {
+        $user = Auth::user();
+
+        $partRequests = \App\Models\PartRequest::with(['mechanic', 'inventory'])
+            ->whereIn('status', ['approved', 'purchased', 'completed'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return inertia('Purchaser/Orders', [
+            'authUser' => $user,
+            'partRequests' => $partRequests
         ]);
     }
 }

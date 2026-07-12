@@ -50,7 +50,7 @@ class AttendanceController extends Controller
         }
 
         // Order users by name for better readability
-        $users = $query->orderBy('firstname')->orderBy('lastname')->paginate(15)->withQueryString();
+        $users = $query->orderBy('firstname')->orderBy('lastname')->paginate(10)->withQueryString();
 
         // Transform the collection to match what the frontend expects
         $users->getCollection()->transform(function ($user) use ($date) {

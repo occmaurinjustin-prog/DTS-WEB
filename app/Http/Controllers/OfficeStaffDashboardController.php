@@ -13,7 +13,6 @@ class OfficeStaffDashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Get statistics for office staff dashboard
         $stats = [
             'total_mechanics' => User::where('role', 'mechanic')->count(),
             'pending_maintenance' => \App\Models\MaintenanceReport::where('status', 'pending')->count(),
@@ -21,6 +20,8 @@ class OfficeStaffDashboardController extends Controller
             'available_trucks' => \App\Models\Truck::where('truck_status', 'available')->count(),
             'active_rescues' => \App\Models\RescueRequest::whereIn('status', ['pending', 'assigned', 'en_route', 'arrived'])->count(),
             'total_rescues' => \App\Models\RescueRequest::count(),
+            'pending_part_requests' => \App\Models\PartRequest::where('status', 'pending')->count(),
+            'low_stock_parts' => \App\Models\Inventory::where('quantity', '<=', \Illuminate\Support\Facades\DB::raw('min_stock_level'))->count(),
         ];
 
         // 1. Weekly Attendance Trends (Last 7 days)

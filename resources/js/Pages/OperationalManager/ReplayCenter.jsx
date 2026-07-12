@@ -408,14 +408,24 @@ export default function ReplayCenter({ authUser, deliveries }) {
                                         <span className="font-medium text-slate-400">Client:</span> <span className="font-medium">{delivery.client?.client_name}</span>
                                     </div>
                                     <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shadow-sm ${selectedDelivery?.delivery_id === delivery.delivery_id
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-600'
-                                            }`}>
-                                            <span className="text-[9px] font-bold">
-                                                {delivery.driver?.user?.firstname?.charAt(0)}
-                                            </span>
-                                        </div>
+                                        {delivery.driver?.user?.profile_image ? (
+                                            <img 
+                                                src={delivery.driver.user.profile_image.startsWith('http') || delivery.driver.user.profile_image.startsWith('/') 
+                                                    ? delivery.driver.user.profile_image 
+                                                    : `/storage/${delivery.driver.user.profile_image}`} 
+                                                alt="Driver" 
+                                                className={`w-6 h-6 rounded-full object-cover shadow-sm ring-1 ${selectedDelivery?.delivery_id === delivery.delivery_id ? 'ring-blue-500' : 'ring-slate-200'}`}
+                                            />
+                                        ) : (
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shadow-sm ${selectedDelivery?.delivery_id === delivery.delivery_id
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                <span className="text-[10px] font-bold">
+                                                    {delivery.driver?.user?.firstname?.charAt(0) || '?'}
+                                                </span>
+                                            </div>
+                                        )}
                                         <span className="font-medium">{delivery.driver?.user?.firstname} {delivery.driver?.user?.lastname}</span>
                                     </div>
                                 </button>

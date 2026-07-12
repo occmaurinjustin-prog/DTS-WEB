@@ -441,10 +441,7 @@ export default function Reports({ authUser, deliveryStats, driverStats, truckSta
     return (
         <AdminLayout title="Operational Reports" authUser={authUser}>
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Operations Reports</h1>
-                    <p className="text-slate-500 mt-0.5 text-sm">Review metrics and generate PDF/CSV exports for deliveries, maintenance, and personnel.</p>
-                </div>
+
 
                 {/* Filters Bar */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4">

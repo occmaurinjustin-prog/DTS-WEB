@@ -86,6 +86,7 @@ export default function Payroll({ payrolls }) {
                                 <tr>
                                     <th className="px-6 py-4">Employee & Period</th>
                                     <th className="px-6 py-4">Hours & Rate</th>
+                                    <th className="px-6 py-4">Gross Salary</th>
                                     <th className="px-6 py-4 text-rose-500">Deductions</th>
                                     <th className="px-6 py-4">Net Salary</th>
                                     <th className="px-6 py-4 text-center">Status</th>
@@ -94,7 +95,7 @@ export default function Payroll({ payrolls }) {
                             <tbody className="divide-y divide-slate-100">
                                 {filteredPayrolls.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center">
+                                        <td colSpan={6} className="px-6 py-12 text-center">
                                             <div className="flex flex-col items-center justify-center text-slate-400">
                                                 <FileText className="w-12 h-12 mb-3 opacity-20" strokeWidth={1} />
                                                 <p className="text-base font-medium">No payroll records found</p>
@@ -107,7 +108,11 @@ export default function Payroll({ payrolls }) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredPayrolls.map((record) => (
+                                    filteredPayrolls.map((record) => {
+                                        const regularHours = record.details?.find(d => d.category === 'regular_hours');
+                                        const deductionsAmount = record.details?.filter(d => d.type === 'deductions').reduce((sum, d) => sum + parseFloat(d.amount), 0) || 0;
+
+                                        return (
                                         <tr key={record.payroll_id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-900">
@@ -119,11 +124,16 @@ export default function Payroll({ payrolls }) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-semibold text-slate-700">{record.total_hours} hrs</div>
-                                                <div className="text-xs text-slate-500 mt-1">@ ₱{record.hourly_rate}/hr</div>
+                                                <div className="font-semibold text-slate-700">{regularHours?.hours || 0} hrs</div>
+                                                <div className="text-xs text-slate-500 mt-1">@ ₱{regularHours?.rate || 0}/hr</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-700">
+                                                    ₱{record.gross_salary}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-rose-600 font-bold">
-                                                {record.deductions > 0 ? `- ₱${record.deductions}` : '₱0.00'}
+                                                {deductionsAmount > 0 ? `- ₱${deductionsAmount.toFixed(2)}` : '₱0.00'}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-lg font-black text-blue-600">
@@ -152,7 +162,8 @@ export default function Payroll({ payrolls }) {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

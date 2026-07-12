@@ -1,32 +1,82 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Users, Truck, Wrench, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { router } from '@inertiajs/react';
+import { 
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
+    ResponsiveContainer, PieChart, Pie, Cell, Legend 
+} from 'recharts';
+import { 
+    Users, Truck, Wrench, Activity, AlertTriangle, ShieldCheck, 
+    ShoppingCart, PackageSearch 
+} from 'lucide-react';
 
 export default function Dashboard({ authUser, userInfo, officeStaff, stats }) {
+    useEffect(() => {
+        if (!window.Echo) return;
+
+        const handleReload = () => {
+            router.reload({ only: ['stats'], preserveScroll: true, preserveState: true });
+        };
+
+        // Listen for real-time updates via Laravel Reverb WebSockets
+        const rescuesChannel = window.Echo.channel('rescues')
+            .listen('RescueRequestSubmitted', handleReload)
+            .listen('RescueStatusUpdated', handleReload);
+
+        const maintChannel = window.Echo.channel('maintenance')
+            .listen('MaintenanceReportSubmitted', handleReload)
+            .listen('MaintenanceStatusUpdated', handleReload);
+
+        // Add additional channels if necessary
+
+        return () => {
+            if (window.Echo) {
+                window.Echo.leaveChannel('rescues');
+                window.Echo.leaveChannel('maintenance');
+            }
+        };
+    }, []);
+
     return (
-        <OfficeStaffLayout title="Dashboard" authUser={authUser} activeMenu="dashboard">
+        <OfficeStaffLayout title="Dashboard Overview" authUser={authUser} activeMenu="dashboard">
             <DashboardContent authUser={authUser} userInfo={userInfo} officeStaff={officeStaff} stats={stats} />
         </OfficeStaffLayout>
     );
 }
 
-function StatCard({ title, value, icon: Icon, trend, colorClass }) {
+function StatCard({ title, value, icon: Icon, trend, trendType }) {
     return (
-        <div className="relative overflow-hidden bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-300 ${colorClass}`} />
-            <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-slate-50 border border-slate-100 ${colorClass.replace('bg-', 'text-')}`}>
-                    <Icon className="w-6 h-6" strokeWidth={1.5} />
+        <div className="p-4 border border-zinc-200 bg-white hover:shadow-sm transition-all group relative overflow-hidden">
+            {trendType === 'urgent' && (
+                <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+            )}
+            {trendType === 'warning' && (
+                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+            )}
+            <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{title}</p>
+                <div className={`p-1.5 rounded-lg ${
+                    trendType === 'urgent' ? 'bg-red-50 text-red-500' :
+                    trendType === 'warning' ? 'bg-amber-50 text-amber-500' :
+                    trendType === 'good' ? 'bg-emerald-50 text-emerald-500' :
+                    'bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100 group-hover:text-zinc-900'
+                } transition-colors`}>
+                    <Icon className="w-4 h-4" strokeWidth={2} />
                 </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-black text-zinc-900 tracking-tight">{value}</h3>
                 {trend && (
-                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 uppercase tracking-wide">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide border ${
+                        trendType === 'urgent' ? 'border-red-200 text-red-600 bg-red-50' : 
+                        trendType === 'warning' ? 'border-amber-200 text-amber-600 bg-amber-50' : 
+                        trendType === 'good' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 
+                        'border-zinc-200 text-zinc-600 bg-zinc-50'
+                    }`}>
                         {trend}
                     </span>
                 )}
             </div>
-            <p className="text-sm font-semibold text-slate-500 mb-1">{title}</p>
-            <h3 className="text-4xl font-black text-slate-800 tracking-tight">{value}</h3>
         </div>
     );
 }
@@ -35,92 +85,71 @@ function DashboardContent({ authUser, stats }) {
     const weeklyAttendance = stats?.weekly_attendance || [];
     const truckStatuses = stats?.truck_statuses || [];
 
+    // Premium Monochrome / Zinc palette
+    const PIE_COLORS = ['#09090b', '#3f3f46', '#71717a', '#a1a1aa', '#e4e4e7'];
+
     return (
-        <div className="min-h-screen pb-12">
-            {/* Header Area */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Overview</h1>
-                <p className="text-slate-500 font-medium text-lg">Welcome back, {authUser?.firstname || 'Staff'}! Here is your daily fleet summary.</p>
+        <div className="pb-12 pt-6 max-w-7xl">
+            {/* High Priority Metrics Grid */}
+            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest mb-4">Operations & Fleet</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <StatCard 
+                    title="Active Emergencies" 
+                    value={stats?.active_rescues || 0} 
+                    icon={AlertTriangle} 
+                    trend={stats?.active_rescues > 0 ? "Urgent" : null} 
+                    trendType={stats?.active_rescues > 0 ? "urgent" : "neutral"} 
+                />
+                <StatCard 
+                    title="Pending Maintenance" 
+                    value={stats?.pending_maintenance || 0} 
+                    icon={Wrench} 
+                    trend={stats?.pending_maintenance > 0 ? "Action Needed" : null} 
+                    trendType={stats?.pending_maintenance > 0 ? "warning" : "neutral"} 
+                />
+                <StatCard 
+                    title="Available Trucks" 
+                    value={stats?.available_trucks || 0} 
+                    icon={Truck} 
+                    trend="Ready" 
+                    trendType="good" 
+                />
+                <StatCard 
+                    title="Total Fleet Size" 
+                    value={stats?.total_trucks || 0} 
+                    icon={Activity} 
+                />
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <StatCard title="Active Emergencies" value={stats?.active_rescues || 0} icon={AlertTriangle} colorClass="bg-red-500" trend={stats?.active_rescues > 0 ? "Urgent" : null} />
-                <StatCard title="Total Rescues Handled" value={stats?.total_rescues || 0} icon={ShieldCheck} colorClass="bg-teal-500" />
-                <StatCard title="Pending Maintenance" value={stats?.pending_maintenance || 0} icon={Wrench} colorClass="bg-rose-500" trend="Action Needed" />
-                <StatCard title="Total Mechanics" value={stats?.total_mechanics || 0} icon={Users} colorClass="bg-indigo-500" trend="Active" />
-                <StatCard title="Total Fleet Size" value={stats?.total_trucks || 0} icon={Truck} colorClass="bg-blue-500" />
-                <StatCard title="Available Trucks" value={stats?.available_trucks || 0} icon={Activity} colorClass="bg-emerald-500" trend="Ready" />
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Attendance Chart - Line instead of Bar */}
-                <div className="lg:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-900">Attendance Trends</h2>
-                            <p className="text-sm text-slate-500 mt-1">7-day mechanic presence overview</p>
-                        </div>
-                    </div>
-                    <div className="h-[320px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={weeklyAttendance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#F1F5F9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }} dy={15} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 12, fontWeight: 500 }} />
-                                <RechartsTooltip 
-                                    contentStyle={{ borderRadius: '16px', border: '1px solid #F1F5F9', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-                                    cursor={{ stroke: '#E2E8F0', strokeWidth: 2, strokeDasharray: '4 4' }}
-                                />
-                                <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
-                                <Line type="monotone" dataKey="Present" stroke="#10B981" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7, strokeWidth: 0, fill: '#10B981' }} />
-                                <Line type="monotone" dataKey="Late" stroke="#F59E0B" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7, strokeWidth: 0, fill: '#F59E0B' }} />
-                                <Line type="monotone" dataKey="Absent" stroke="#EF4444" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7, strokeWidth: 0, fill: '#EF4444' }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Truck Status Donut */}
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-                    <div className="mb-8">
-                        <h2 className="text-xl font-bold text-slate-900">Fleet Status</h2>
-                        <p className="text-sm text-slate-500 mt-1">Current truck distribution</p>
-                    </div>
-                    <div className="h-[280px] w-full flex items-center justify-center">
-                        {truckStatuses.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={truckStatuses}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={100}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        stroke="none"
-                                        cornerRadius={4}
-                                    >
-                                        {truckStatuses.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #F1F5F9', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }} />
-                                    <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="text-slate-400 flex flex-col items-center">
-                                <Truck className="w-10 h-10 mb-2 opacity-30" />
-                                <span className="text-sm font-medium">No fleet data</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest mb-4">Inventory & Staffing</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <StatCard 
+                    title="Pending Part Requests" 
+                    value={stats?.pending_part_requests || 0} 
+                    icon={ShoppingCart} 
+                    trend={stats?.pending_part_requests > 0 ? "Needs Approval" : null} 
+                    trendType={stats?.pending_part_requests > 0 ? "warning" : "neutral"} 
+                />
+                <StatCard 
+                    title="Low Stock Items" 
+                    value={stats?.low_stock_parts || 0} 
+                    icon={PackageSearch} 
+                    trend={stats?.low_stock_parts > 0 ? "Reorder" : null} 
+                    trendType={stats?.low_stock_parts > 0 ? "urgent" : "neutral"} 
+                />
+                <StatCard 
+                    title="Total Mechanics" 
+                    value={stats?.total_mechanics || 0} 
+                    icon={Users} 
+                    trend="Active" 
+                    trendType="good" 
+                />
+                <StatCard 
+                    title="Total Rescues (All Time)" 
+                    value={stats?.total_rescues || 0} 
+                    icon={ShieldCheck} 
+                />
             </div>
         </div>
     );
 }
-

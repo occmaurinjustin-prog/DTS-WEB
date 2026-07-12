@@ -1,9 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PurchaserLayout from '../../Layouts/PurchaserLayout';
+import { router } from '@inertiajs/react';
+import { toast, Toaster } from 'react-hot-toast';
 
-export default function Dashboard({ authUser, stats }) {
+export default function Dashboard({ authUser, stats, partRequests }) {
+    const [processingId, setProcessingId] = useState(null);
+
+    const handleMarkPurchased = (id) => {
+        if (!confirm('Mark this request as purchased?')) return;
+        
+        setProcessingId(id);
+        router.put(`/purchaser/part-requests/${id}/status`, { status: 'purchased' }, {
+            onSuccess: () => {
+                toast.success('Marked as purchased');
+                setProcessingId(null);
+            },
+            onError: () => {
+                toast.error('Failed to update status');
+                setProcessingId(null);
+            }
+        });
+    };
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'approved': return <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">To Purchase</span>;
+            case 'purchased': return <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">Purchased</span>;
+            case 'completed': return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Completed (In Stock)</span>;
+            default: return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">{status}</span>;
+        }
+    };
+
     return (
         <PurchaserLayout title="Purchaser Dashboard" authUser={authUser} activeMenu="dashboard">
+            <Toaster position="top-right" />
             <div className="space-y-6 max-w-7xl mx-auto">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -29,7 +59,7 @@ export default function Dashboard({ authUser, stats }) {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-slate-500">Total Orders</p>
+                                <p className="text-xs font-semibold text-slate-500">Total Requests</p>
                                 <p className="text-xl font-bold text-slate-900">{stats?.total_orders || 0}</p>
                             </div>
                         </div>
@@ -43,8 +73,8 @@ export default function Dashboard({ authUser, stats }) {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-slate-500">Pending Orders</p>
-                                <p className="text-xl font-bold text-slate-900">{stats?.pending_orders || 0}</p>
+                                <p className="text-xs font-semibold text-slate-500">Pending Purchase</p>
+                                <p className="text-xl font-bold text-slate-900">{stats?.pending_purchase || 0}</p>
                             </div>
                         </div>
                     </div>
@@ -57,8 +87,8 @@ export default function Dashboard({ authUser, stats }) {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-slate-500">Approved Orders</p>
-                                <p className="text-xl font-bold text-slate-900">{stats?.approved_orders || 0}</p>
+                                <p className="text-xs font-semibold text-slate-500">Purchased</p>
+                                <p className="text-xl font-bold text-slate-900">{stats?.purchased || 0}</p>
                             </div>
                         </div>
                     </div>

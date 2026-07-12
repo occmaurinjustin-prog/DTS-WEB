@@ -19,8 +19,8 @@ class PayrollController extends Controller
 
     public function index()
     {
-        $payrolls = Payroll::with('user')->orderBy('period_start', 'desc')->get();
-        $mechanics = User::where('role', 'mechanic')->get();
+        $payrolls = Payroll::with(['user', 'details'])->orderBy('period_start', 'desc')->get();
+        $mechanics = User::where('role', 'mechanic')->where('is_active', true)->get();
 
         return inertia('OfficeStaff/Payroll', [
             'payrolls' => $payrolls,

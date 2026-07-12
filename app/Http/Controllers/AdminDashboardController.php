@@ -176,11 +176,18 @@ class AdminDashboardController extends Controller
 
     public function users()
     {
-        $users = User::with('driver')->orderBy('created_at', 'desc')->get();
         $trucks = \App\Models\Truck::orderBy('plate_number')->get();
 
+        $userStats = [
+            'total' => \App\Models\User::count(),
+            'active' => \App\Models\User::where('is_active', 1)->count(),
+            'drivers' => \App\Models\User::where('role', 'driver')->count(),
+            'mechanics' => \App\Models\User::where('role', 'mechanic')->count(),
+            'staff' => \App\Models\User::whereNotIn('role', ['driver', 'mechanic', 'admin'])->count(),
+        ];
+
         return inertia('Admin/Users', [
-            'users' => $users,
+            'userStats' => $userStats,
             'trucks' => $trucks,
             'authUser' => Auth::user(),
         ]);

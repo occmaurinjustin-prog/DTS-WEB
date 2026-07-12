@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Truck extends Model
 {
@@ -21,6 +22,8 @@ class Truck extends Model
         'maintenance_interval_mileage',
         'condition',
         'truck_status',
+        'next_inspection_date',
+        'current_inspection_mechanic_id',
     ];
 
     protected $casts = [
@@ -28,6 +31,7 @@ class Truck extends Model
         'last_maintenance_mileage' => 'integer',
         'maintenance_interval_mileage' => 'integer',
         'last_maintenance_date' => 'date',
+        'next_inspection_date' => 'date',
         'year_manufactured' => 'integer',
     ];
 
@@ -40,6 +44,11 @@ class Truck extends Model
     public function driverReports(): HasMany
     {
         return $this->hasMany(MaintenanceReport::class, 'truck_id', 'truck_id');
+    }
+
+    public function currentInspectingMechanic(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'current_inspection_mechanic_id', 'user_id');
     }
 
     // Check if truck needs maintenance

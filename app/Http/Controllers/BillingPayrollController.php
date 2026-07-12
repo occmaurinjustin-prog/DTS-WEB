@@ -9,7 +9,7 @@ class BillingPayrollController extends Controller
 {
     public function index()
     {
-        $payrolls = Payroll::with('user')->orderBy('period_start', 'desc')->get();
+        $payrolls = Payroll::with(['user', 'details'])->orderBy('period_start', 'desc')->get();
 
         return inertia('Billing/Payroll', [
             'payrolls' => $payrolls,

@@ -481,6 +481,8 @@ class DriverController extends Controller
                 'status' => 'pending',
             ]);
 
+            event(new \App\Events\MaintenanceReportUpdated());
+
             Log::info('Maintenance report submitted', [
                 'report_id' => $maintenanceReport->id,
                 'driver_id' => $driver->driver_id,

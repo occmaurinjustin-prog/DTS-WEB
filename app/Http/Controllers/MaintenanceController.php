@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Maintenance;
 use App\Models\MaintenanceReport;
-use App\Models\MaintenancePart;
+
 use App\Models\Inventory;
+use App\Models\InventoryTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -94,7 +95,6 @@ class MaintenanceController extends Controller
     {
         $validated = $request->validate([
             'part_name' => 'required|string|max:255',
-            'part_number' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:255',
             'quantity' => 'required|integer|min:0',
             'min_stock_level' => 'required|integer|min:0',
@@ -103,6 +103,15 @@ class MaintenanceController extends Controller
 
         $part = Inventory::create($validated);
         $part->updateStatus();
+
+        InventoryTransaction::create([
+            'inventory_id' => $part->Inventory_id,
+            'user_id' => Auth::id(),
+            'type' => 'stock_in',
+            'quantity' => $validated['quantity'],
+            'reference_type' => 'manual',
+            'remarks' => 'Initial stock addition',
+        ]);
 
         return redirect()->back()->with('success', 'Part added successfully!');
     }
@@ -114,17 +123,51 @@ class MaintenanceController extends Controller
 
         $validated = $request->validate([
             'part_name' => 'required|string|max:255',
-            'part_number' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:255',
             'quantity' => 'required|integer|min:0',
             'min_stock_level' => 'required|integer|min:0',
             'part_status' => 'required|in:available,low_stock,out_of_stock',
         ]);
 
+        $oldQuantity = $part->quantity;
+
         $part->update($validated);
         $part->updateStatus();
 
+        if ($validated['quantity'] != $oldQuantity) {
+            $diff = $validated['quantity'] - $oldQuantity;
+            InventoryTransaction::create([
+                'inventory_id' => $part->Inventory_id,
+                'user_id' => Auth::id(),
+                'type' => $diff > 0 ? 'stock_in' : 'stock_out',
+                'quantity' => abs($diff),
+                'reference_type' => 'manual',
+                'remarks' => 'Manual stock adjustment',
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Part updated successfully!');
+    }
+
+    // Get transactions for a part
+    public function getTransactions($id)
+    {
+        $transactions = InventoryTransaction::where('inventory_id', $id)
+            ->with('user:user_id,firstname,lastname')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['transactions' => $transactions]);
+    }
+
+    // Get all transactions for the master ledger
+    public function getAllTransactions()
+    {
+        $transactions = InventoryTransaction::with(['user:user_id,firstname,lastname', 'inventory'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['transactions' => $transactions]);
     }
 
     // Delete part
@@ -144,9 +187,6 @@ class MaintenanceController extends Controller
         try {
             $validated = $request->validate([
                 'report_id' => 'required|exists:maintenance_reports,id',
-                'selected_parts' => 'nullable|array',
-                'selected_parts.*.Inventory_id' => 'required|exists:inventory,Inventory_id',
-                'selected_parts.*.quantity_needed' => 'required|integer|min:1',
                 'schedule.repair_date' => 'required|date',
                 'schedule.repair_time' => 'required',
                 'schedule.repair_location' => 'required|string|max:255',
@@ -174,30 +214,6 @@ class MaintenanceController extends Controller
                 throw new \Exception('Database error: ' . $createError->getMessage());
             }
 
-            // Process selected parts and deduct from inventory (if any)
-            if (!empty($validated['selected_parts'])) {
-                foreach ($validated['selected_parts'] as $partData) {
-                    $inventory = Inventory::findOrFail($partData['Inventory_id']);
-                    
-                    // Check if enough stock is available
-                    if ($inventory->quantity < $partData['quantity_needed']) {
-                        throw new \Exception("Insufficient stock for part: {$inventory->part_name}");
-                    }
-
-                    // Create maintenance part record
-                    MaintenancePart::create([
-                        'maintenance_report_id' => $validated['report_id'],
-                        'inventory_id' => $partData['Inventory_id'],
-                        'quantity_used' => $partData['quantity_needed'],
-                        'unit_cost' => $inventory->unit_cost ?? 0,
-                    ]);
-
-                    // Deduct from inventory
-                    $inventory->quantity -= $partData['quantity_needed'];
-                    $inventory->updateStatus();
-                    $inventory->save();
-                }
-            }
 
             // Note: Status remains 'approved' - Start button will change it to 'in_progress'
             $report = MaintenanceReport::findOrFail($validated['report_id']);

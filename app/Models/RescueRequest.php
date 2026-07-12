@@ -56,15 +56,9 @@ class RescueRequest extends Model
         return $this->hasMany(RescueMedia::class, 'rescue_id', 'rescue_id');
     }
 
-    public function parts()
+    public function usedParts()
     {
-        return $this->belongsToMany(
-            \App\Models\Inventory::class,
-            'rescue_parts',
-            'rescue_request_id',
-            'inventory_id',
-            'rescue_id',
-            'Inventory_id'
-        )->withPivot('quantity', 'created_at', 'updated_at')->withTimestamps();
+        return $this->hasMany(InventoryTransaction::class, 'reference_id', 'rescue_id')
+                    ->where('reference_type', 'rescue');
     }
 }

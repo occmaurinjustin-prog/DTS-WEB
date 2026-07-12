@@ -82,11 +82,7 @@ export default function Drivers({ authUser, stats }) {
         <AdminLayout title="Driver Management" authUser={authUser} activeMenu="drivers" pendingDeliveries={queryStats?.pending_deliveries || 0}>
             <div className="space-y-6">
 
-                {/* Header Title */}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Drivers Roster</h1>
-                    <p className="text-slate-500 mt-0.5 text-sm">Monitor operator active states, license registries, and real-time duty status</p>
-                </div>
+
 
                 {/* Toolbar - Compact Premium */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -17,10 +17,6 @@ class Payroll extends Model
         'user_id',
         'period_start',
         'period_end',
-        'total_hours',
-        'hourly_rate',
-        'overtime_pay',
-        'deductions',
         'gross_salary',
         'net_salary',
         'status',
@@ -29,10 +25,6 @@ class Payroll extends Model
     protected $casts = [
         'period_start' => 'date:Y-m-d',
         'period_end' => 'date:Y-m-d',
-        'total_hours' => 'decimal:2',
-        'hourly_rate' => 'decimal:2',
-        'overtime_pay' => 'decimal:2',
-        'deductions' => 'decimal:2',
         'gross_salary' => 'decimal:2',
         'net_salary' => 'decimal:2',
     ];
@@ -40,5 +32,10 @@ class Payroll extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
+    }
+
+    public function details()
+    {
+        return $this->hasMany(PayrollDetail::class, 'payroll_id', 'payroll_id');
     }
 }

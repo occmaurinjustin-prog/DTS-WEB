@@ -122,7 +122,7 @@ class RescueApiController extends Controller
 
         $history = RescueRequest::where('driver_id', $driver->driver_id)
             ->where('status', 'resolved')
-            ->with(['mechanic', 'media', 'parts'])
+            ->with(['mechanic', 'media', 'usedParts'])
             ->latest()
             ->get();
 
@@ -139,6 +139,9 @@ class RescueApiController extends Controller
         $validated = $request->validate([
             'status' => 'required|in:en_route,arrived,resolved',
             'notes' => 'nullable|string',
+            'parts' => 'nullable|array',
+            'parts.*.Inventory_id' => 'required|exists:inventory,Inventory_id',
+            'parts.*.quantity' => 'required|integer|min:1',
         ]);
 
         $rescue = RescueRequest::where('rescue_id', $id)
@@ -153,6 +156,33 @@ class RescueApiController extends Controller
 
         if ($validated['status'] === 'resolved') {
             $rescue->resolved_at = now();
+            
+            // Handle parts deduction if provided
+            if (isset($validated['parts']) && count($validated['parts']) > 0) {
+                foreach ($validated['parts'] as $partData) {
+                    $inventory = \App\Models\Inventory::findOrFail($partData['Inventory_id']);
+                    
+                    if ($inventory->quantity < $partData['quantity']) {
+                        return response()->json([
+                            'message' => "Not enough stock for {$inventory->part_name}. Available: {$inventory->quantity}"
+                        ], 400);
+                    }
+
+                    // Deduct inventory
+                    $inventory->quantity -= $partData['quantity'];
+                    $inventory->save();
+
+                    // Check if already attached (in case of retry or existing parts)
+                    $existing = $rescue->parts()->where('inventory.Inventory_id', $partData['Inventory_id'])->first();
+                    
+                    if ($existing) {
+                        $newQuantity = $existing->pivot->quantity + $partData['quantity'];
+                        $rescue->parts()->updateExistingPivot($partData['Inventory_id'], ['quantity' => $newQuantity]);
+                    } else {
+                        $rescue->parts()->attach($partData['Inventory_id'], ['quantity' => $partData['quantity']]);
+                    }
+                }
+            }
         }
 
         $rescue->save();

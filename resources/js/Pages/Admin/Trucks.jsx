@@ -180,15 +180,10 @@ export default function Trucks({ trucks, stats, authUser, pendingDeliveries = 0,
                     </div>
                 )}
 
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Fleet Management</h1>
-                        <p className="text-slate-500 mt-0.5 text-sm">Monitor fleet capacities, vehicle condition audits, and active operator dispatches</p>
-                    </div>
+                <div className="flex justify-end mb-4">
                     <button
                         onClick={handleAdd}
-                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-sm font-medium rounded-lg shadow-md shadow-emerald-500/10 hover:shadow-lg transition-all"
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

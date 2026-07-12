@@ -14,7 +14,6 @@ class Inventory extends Model
 
     protected $fillable = [
         'part_name',
-        'part_number',
         'category',
         'quantity',
         'min_stock_level',
@@ -81,5 +80,10 @@ class Inventory extends Model
     public function scopeOutOfStock($query)
     {
         return $query->where('quantity', '<=', 0);
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(InventoryTransaction::class, 'inventory_id', 'Inventory_id');
     }
 }

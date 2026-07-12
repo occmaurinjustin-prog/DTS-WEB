@@ -42,44 +42,37 @@ class PayrollService
         }
 
         // Calculations
-        $lateMinutes = $attendances->sum('late_minutes');
-        $undertimeMinutes = $attendances->sum('undertime_minutes');
-
-        // Deductions (Deduct per minute of late/undertime)
-        $deductionPerMinute = $hourlyRate / 60;
-        $deductions = ($lateMinutes + $undertimeMinutes) * $deductionPerMinute;
-
-        // Overtime Pay (Removed as requested)
-        $overtimePay = 0;
-
-        // The Total Hours stored should strictly match the actual worked hours from Attendance.
         $totalHours = $attendances->sum('total_work_hours');
-        
-        // Gross Salary is based purely on the actual hours they worked.
-        // Because the actual hours worked already EXCLUDES late and undertime minutes,
-        // we do NOT subtract deductions from the Gross Salary again (otherwise we double deduct).
         $grossSalary = $totalHours * $hourlyRate;
-
-        // Compute Net Salary: Gross + Overtime. 
-        // (Deductions are recorded purely for the payslip display so the employee knows how much they lost).
-        $netSalary = $grossSalary + $overtimePay;
+        $netSalary = $grossSalary;
 
         // Create or Update Payroll Record
-        return Payroll::updateOrCreate(
+        $payroll = Payroll::updateOrCreate(
             [
                 'user_id' => $user->user_id,
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
             ],
             [
-                'total_hours' => $totalHours,
-                'hourly_rate' => $hourlyRate,
-                'overtime_pay' => round($overtimePay, 2),
-                'deductions' => round($deductions, 2),
                 'gross_salary' => round($grossSalary, 2),
                 'net_salary' => round($netSalary, 2),
                 'status' => 'pending',
             ]
         );
+
+        // Clear existing details if regenerating
+        $payroll->details()->delete();
+
+        // Create details
+        $payroll->details()->create([
+            'type' => 'earnings',
+            'category' => 'regular_hours',
+            'description' => 'Regular Worked Hours',
+            'hours' => $totalHours,
+            'rate' => $hourlyRate,
+            'amount' => round($grossSalary, 2),
+        ]);
+
+        return $payroll;
     }
 }

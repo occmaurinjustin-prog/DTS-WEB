@@ -19,6 +19,7 @@ Route::middleware(['cors'])->group(function () {
     Route::get('/mechanics/{userId}', [MechanicController::class, 'show']);
     Route::get('/mechanic/assignments', [MechanicController::class, 'getAssignments'])->middleware('auth.api');
     Route::put('/mechanic/assignments/{maintenanceId}/status', [MechanicController::class, 'updateMaintenanceStatus'])->middleware('auth.api');
+    Route::get('/mechanic/inventory', [MechanicController::class, 'getInventory'])->middleware('auth.api');
     
     // Mechanic inspection reports
     Route::get('/mechanic/inspection-reports', [MechanicController::class, 'getInspectionReports'])->middleware('auth.api');
@@ -26,6 +27,10 @@ Route::middleware(['cors'])->group(function () {
     Route::get('/mechanic/dashboard-stats', [MechanicController::class, 'getDashboardStats'])->middleware('auth.api');
     Route::get('/mechanic/trucks', [MechanicController::class, 'getAvailableTrucks'])->middleware('auth.api');
     Route::get('/mechanics', [MechanicController::class, 'getMechanics']);
+
+    // Mechanic part requests
+    Route::get('/mechanic/part-requests', [MechanicController::class, 'getPartRequests'])->middleware('auth.api');
+    Route::post('/mechanic/part-requests', [MechanicController::class, 'createPartRequest'])->middleware('auth.api');
 
     // Mechanic attendance
     // Route::post('/mechanics/attendance', [MechanicAttendanceController::class, 'store']);

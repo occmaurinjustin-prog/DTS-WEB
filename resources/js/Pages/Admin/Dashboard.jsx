@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { router, Head, Link } from '@inertiajs/react';
 import { createPortal } from 'react-dom';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 
 // ==================== ICONS ====================
@@ -460,53 +461,53 @@ function FleetPerformanceBoard({ data }) {
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
                         <div>
-                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Trucks</p>
-                            <p className="text-2xl font-bold text-slate-800">{data.summary.total_trucks}</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Total Trucks</p>
+                            <p className="text-xl font-bold text-slate-800">{data.summary.total_trucks}</p>
                         </div>
-                        <div className="w-10 h-10 bg-slate-200/50 rounded-full flex items-center justify-center">
-                            <Icon name="trucks" className="w-5 h-5 text-slate-500" />
+                        <div className="w-8 h-8 bg-slate-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="trucks" className="w-4 h-4 text-slate-500" />
                         </div>
                     </div>
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                    <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-center justify-between">
                         <div>
-                            <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">Total Trips</p>
-                            <p className="text-2xl font-bold text-blue-800">{data.summary.total_trips}</p>
+                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Total Trips</p>
+                            <p className="text-xl font-bold text-blue-800">{data.summary.total_trips}</p>
                         </div>
-                        <div className="w-10 h-10 bg-blue-200/50 rounded-full flex items-center justify-center">
-                            <Icon name="tracking" className="w-5 h-5 text-blue-600" />
+                        <div className="w-8 h-8 bg-blue-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="tracking" className="w-4 h-4 text-blue-600" />
                         </div>
                     </div>
-                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center justify-between">
+                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 flex items-center justify-between">
                         <div>
-                            <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Top Truck</p>
-                            <p className="text-xl font-bold text-emerald-800 truncate max-w-[100px]">{data.summary.highest_performing_truck}</p>
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Top Truck</p>
+                            <p className="text-lg font-bold text-emerald-800 truncate max-w-[100px]">{data.summary.highest_performing_truck}</p>
                         </div>
-                        <div className="w-10 h-10 bg-emerald-200/50 rounded-full flex items-center justify-center">
-                            <Icon name="dashboard" className="w-5 h-5 text-emerald-600" />
+                        <div className="w-8 h-8 bg-emerald-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="dashboard" className="w-4 h-4 text-emerald-600" />
                         </div>
                     </div>
-                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
+                    <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex items-center justify-between">
                         <div>
-                            <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Avg Trips</p>
-                            <p className="text-2xl font-bold text-indigo-800">{data.summary.average_trips}</p>
+                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-0.5">Avg Trips</p>
+                            <p className="text-xl font-bold text-indigo-800">{data.summary.average_trips}</p>
                         </div>
-                        <div className="w-10 h-10 bg-indigo-200/50 rounded-full flex items-center justify-center">
-                            <Icon name="reports" className="w-5 h-5 text-indigo-600" />
+                        <div className="w-8 h-8 bg-indigo-200/50 rounded-full flex items-center justify-center">
+                            <Icon name="reports" className="w-4 h-4 text-indigo-600" />
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Responsive Table */}
-            <div className="overflow-x-auto flex-1 pb-2">
+            <div className="overflow-x-auto flex-1 no-scrollbar">
                 <table className="w-full text-sm text-left border-collapse">
                     <thead className="bg-slate-50 border-y border-slate-200 shadow-sm sticky top-0 z-20">
                         <tr>
                             <th 
-                                className="sticky left-0 bg-slate-50 px-6 py-4 font-semibold text-slate-700 uppercase tracking-wider text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100 z-30 shadow-[1px_0_0_0_#e2e8f0]"
+                                className="sticky left-0 bg-slate-50 px-4 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs border-r border-slate-200 cursor-pointer hover:bg-slate-100 z-30 shadow-[1px_0_0_0_#e2e8f0]"
                                 onClick={() => handleSort('plate_number')}
                             >
                                 <div className="flex items-center gap-2">
@@ -517,13 +518,13 @@ function FleetPerformanceBoard({ data }) {
                                 </div>
                             </th>
                             {data.weeks_headers.map(week => (
-                                <th key={week.week} className="px-6 py-4 font-semibold text-slate-700 uppercase tracking-wider text-xs text-center border-r border-slate-100 min-w-[130px]">
+                                <th key={week.week} className="px-4 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs text-center border-r border-slate-100 min-w-[130px]">
                                     <div>Week {week.week}</div>
                                     <div className="text-[10px] text-slate-400 mt-1 normal-case font-medium bg-white px-2 py-0.5 rounded border border-slate-100 inline-block">{week.label}</div>
                                 </th>
                             ))}
                             <th 
-                                className="px-6 py-4 font-bold text-slate-800 uppercase tracking-wider text-xs text-center bg-slate-100 cursor-pointer hover:bg-slate-200 border-l border-slate-200"
+                                className="px-4 py-3 font-bold text-slate-800 uppercase tracking-wider text-xs text-center bg-slate-100 cursor-pointer hover:bg-slate-200 border-l border-slate-200"
                                 onClick={() => handleSort('monthly_trips')}
                             >
                                 <div className="flex items-center justify-center gap-2">
@@ -538,7 +539,7 @@ function FleetPerformanceBoard({ data }) {
                     <tbody className="divide-y divide-slate-100 bg-white">
                         {sortedTrucks.length > 0 ? sortedTrucks.map((truck) => (
                             <tr key={truck.truck_id} className="hover:bg-slate-50/80 transition-colors group">
-                                <td className="sticky left-0 bg-white group-hover:bg-slate-50/80 px-6 py-4 border-r border-slate-200 z-10 shadow-[1px_0_0_0_#e2e8f0]">
+                                <td className="sticky left-0 bg-white group-hover:bg-slate-50/80 px-4 py-3 border-r border-slate-200 z-10 shadow-[1px_0_0_0_#e2e8f0]">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
                                             <Icon name="trucks" className="w-4 h-4 text-indigo-600" />
@@ -561,12 +562,12 @@ function FleetPerformanceBoard({ data }) {
                                     }
 
                                     return (
-                                        <td key={week.week} className={`px-6 py-4 text-center border-r border-slate-50 ${bgColor}`}>
+                                        <td key={week.week} className={`px-4 py-3 text-center border-r border-slate-50 ${bgColor}`}>
                                             <span className={cellColor}>{trips}</span>
                                         </td>
                                     );
                                 })}
-                                <td className="px-6 py-4 text-center font-bold text-slate-900 bg-slate-50/50 border-l border-slate-100 text-base">
+                                <td className="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50/50 border-l border-slate-100 text-base">
                                     {truck.monthly_trips}
                                 </td>
                             </tr>
@@ -581,128 +582,6 @@ function FleetPerformanceBoard({ data }) {
                 </table>
             </div>
         </div>
-    );
-}
-
-// ==================== HEADER COMPONENT ====================
-function Header({ authUser, liveNotifications = [], setLiveNotifications, darkMode, onDarkModeToggle }) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (isDropdownOpen && !e.target.closest('.notifications-dropdown-container')) {
-                setIsDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isDropdownOpen]);
-
-    return (
-        <header className="h-[70px] bg-white border-b border-gray-200 px-[30px] flex items-center justify-between sticky top-0 z-40">
-            {/* Left - Page Title */}
-            <div className="flex items-center gap-3">
-                <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-                <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 text-xs font-medium rounded-full">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    LIVE
-                </span>
-            </div>
-
-            {/* Center - Search */}
-            <div className="relative w-[300px]">
-                <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Search deliveries, drivers..."
-                    className="w-full h-[40px] pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] transition-all"
-                />
-            </div>
-
-            {/* Right - Actions & Profile */}
-            <div className="flex items-center gap-4">
-                {/* Notifications */}
-                <div className="relative notifications-dropdown-container">
-                    <button 
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="relative w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all"
-                    >
-                        <Icon name="notifications" className="w-5 h-5 text-gray-600" />
-                        {liveNotifications.length > 0 && (
-                            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                {liveNotifications.length > 9 ? '9+' : liveNotifications.length}
-                            </span>
-                        )}
-                    </button>
-                    
-                    {/* Notifications Dropdown */}
-                    {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-[60]">
-                            <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center">
-                                <h3 className="font-semibold text-gray-900">Notifications</h3>
-                                {liveNotifications.length > 0 && (
-                                    <button onClick={() => setLiveNotifications([])} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Clear All</button>
-                                )}
-                            </div>
-                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                                {liveNotifications.length === 0 ? (
-                                    <p className="px-4 py-6 text-sm text-gray-500 text-center">No new notifications</p>
-                                ) : (
-                                    liveNotifications.map((notif, idx) => (
-                                        <Link key={idx} href="/admin/deliveries" className="px-4 py-3 hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-0 flex gap-3 items-start block">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <Icon name="deliveries" className="w-4 h-4 text-emerald-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-900">New Request: #{notif.waybill}</p>
-                                                <p className="text-xs text-gray-600 mt-0.5">Client: {notif.client_name}</p>
-                                                <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.created_at).toLocaleTimeString()}</p>
-                                            </div>
-                                        </Link>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Fullscreen */}
-                <button className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all">
-                    <Icon name="fullscreen" className="w-5 h-5 text-gray-600" />
-                </button>
-
-                {/* Dark Mode Toggle */}
-                <button
-                    onClick={onDarkModeToggle}
-                    className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all"
-                >
-                    <Icon name={darkMode ? 'sun' : 'moon'} className="w-5 h-5 text-gray-600" />
-                </button>
-
-                {/* User Profile */}
-                <Link href="/profile" className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 p-2 rounded-xl transition-colors cursor-pointer">
-                    {authUser?.profile_image ? (
-                        <img src={authUser.profile_image} alt="Profile" className="w-10 h-10 rounded-xl object-cover shadow-sm border border-gray-200" />
-                    ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                                {authUser?.firstname?.charAt(0) || 'A'}
-                            </span>
-                        </div>
-                    )}
-                    <div className="hidden md:block">
-                        <p className="text-sm font-medium text-gray-900 group-hover:text-[#4F46E5] transition-colors">{authUser?.firstname || 'Admin'} {authUser?.lastname || 'User'}</p>
-                        <p className="text-xs text-gray-500">Administrator</p>
-                    </div>
-                </Link>
-
-                {/* Logout Button */}
-                <div className="pl-4 border-l border-gray-200 ml-2">
-                    <LogoutButton />
-                </div>
-            </div>
-        </header>
     );
 }
 
@@ -721,7 +600,7 @@ export default function Dashboard({ authUser, stats, recentDeliveries, initialNo
                 if (e.deliveryData) {
                     setLiveNotifications(prev => [e.deliveryData, ...prev]);
                     // Instantly fetch new data
-                    router.reload({ only: ['stats', 'recentDeliveries'], preserveScroll: true, preserveState: true });
+                    router.reload({ only: ['stats', 'recentDeliveries', 'fleetPerformance'], preserveScroll: true, preserveState: true });
                     setLastUpdated(new Date());
                 }
             });
@@ -731,10 +610,10 @@ export default function Dashboard({ authUser, stats, recentDeliveries, initialNo
         };
     }, []);
 
-    // Fallback polling (every 30 seconds instead of 10)
+    // Fallback polling (every 30 seconds)
     useEffect(() => {
         const interval = setInterval(() => {
-            router.reload({ only: ['stats', 'recentDeliveries'], preserveScroll: true, preserveState: true });
+            router.reload({ only: ['stats', 'recentDeliveries', 'fleetPerformance'], preserveScroll: true, preserveState: true });
             setLastUpdated(new Date());
         }, 30000);
 
@@ -750,32 +629,16 @@ export default function Dashboard({ authUser, stats, recentDeliveries, initialNo
     ];
 
     return (
-        <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-[#F5F7FB]'}`}>
+        <AdminLayout title="Dashboard" activeMenu="dashboard" user={authUser} notificationCount={liveNotifications.length}>
             <Head title="Admin Dashboard" />
 
-            <div className="flex">
-                {/* Sidebar */}
-                <Sidebar activeMenu="dashboard" notificationCount={liveNotifications.length} />
-
-                {/* Main Content */}
-                <div className="flex-1 ml-[260px]">
-                    {/* Header */}
-                    <Header
-                        authUser={authUser}
-                        liveNotifications={liveNotifications}
-                        setLiveNotifications={setLiveNotifications}
-                        darkMode={darkMode}
-                        onDarkModeToggle={() => setDarkMode(!darkMode)}
-                    />
-
-                    {/* Page Content */}
-                    <main className="p-6">
-                        {/* Stat Cards - Compact */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                            {statCards.map((card) => (
-                                <StatCard key={card.label} {...card} />
-                            ))}
-                        </div>
+            <div className="p-6">
+                {/* Stat Cards - Compact */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    {statCards.map((card) => (
+                        <StatCard key={card.label} {...card} />
+                    ))}
+                </div>
 
                         {/* Main Grid - Status Chart + Maintenance & Operational Resources */}
                         <div className="grid grid-cols-3 gap-6 mb-6">
@@ -868,9 +731,7 @@ export default function Dashboard({ authUser, stats, recentDeliveries, initialNo
                             <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
                             <p>&copy; 2024 Delivery Tracking System. All rights reserved.</p>
                         </div>
-                    </main>
-                </div>
             </div>
-        </div>
+        </AdminLayout>
     );
 }

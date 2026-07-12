@@ -160,7 +160,8 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
             }
         }
 
-        const duration = 1000; // 1 second transition
+        // Determine expected ping interval (10 seconds)
+        const duration = 10000; 
         const startTime = performance.now();
 
         if (animationFrames.current[driverId]) {
@@ -169,16 +170,33 @@ export default function Routes({ authUser, pendingDeliveries, drivers }) {
 
         const animate = (currentTime) => {
             const elapsedTime = currentTime - startTime;
-            const progress = Math.min(elapsedTime / duration, 1);
-            const easeProgress = progress * (2 - progress); // Ease out quad
 
-            const currentLng = startLngLat[0] + (endLngLat[0] - startLngLat[0]) * easeProgress;
-            const currentLat = startLngLat[1] + (endLngLat[1] - startLngLat[1]) * easeProgress;
+            if (elapsedTime <= duration) {
+                // Interpolate from start to end over 10 seconds
+                const progress = elapsedTime / duration;
+                // Linear interpolation for constant speed
+                const currentLng = startLngLat[0] + (endLngLat[0] - startLngLat[0]) * progress;
+                const currentLat = startLngLat[1] + (endLngLat[1] - startLngLat[1]) * progress;
 
-            marker.setLngLat([currentLng, currentLat]);
-
-            if (progress < 1) {
+                marker.setLngLat([currentLng, currentLat]);
                 animationFrames.current[driverId] = requestAnimationFrame(animate);
+            } else {
+                // EXTRAPOLATE: Driver lost signal (data is off). Keep moving!
+                const overTime = elapsedTime - duration;
+                
+                // Calculate movement vector per millisecond
+                const vectorLngPerMs = (endLngLat[0] - startLngLat[0]) / duration;
+                const vectorLatPerMs = (endLngLat[1] - startLngLat[1]) / duration;
+
+                const currentLng = endLngLat[0] + (vectorLngPerMs * overTime);
+                const currentLat = endLngLat[1] + (vectorLatPerMs * overTime);
+
+                marker.setLngLat([currentLng, currentLat]);
+
+                // Stop extrapolating after 60 seconds to prevent driving off the map
+                if (overTime < 60000) {
+                    animationFrames.current[driverId] = requestAnimationFrame(animate);
+                }
             }
         };
 

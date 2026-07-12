@@ -4,6 +4,8 @@ import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AlertCircle, MapPin, Wrench, Clock, Search, XCircle, CheckCircle } from 'lucide-react';
+import Pagination from '@/Components/Pagination';
+import usePagination from '@/hooks/usePagination';
 
 if (mapboxgl) {
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -11,15 +13,11 @@ if (mapboxgl) {
 
 export default function RescueDispatch({ authUser, activeRescues, rescueHistory, mechanics, inventory = [] }) {
     const [selectedRescue, setSelectedRescue] = useState(null);
+    const { paginatedData, currentPage, setCurrentPage, totalPages } = usePagination(activeRescues, 10);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedMechanicId, setSelectedMechanicId] = useState('');
     const [dispatchNotes, setDispatchNotes] = useState('');
-    
-    // Add Parts state
-    const [selectedPartId, setSelectedPartId] = useState('');
-    const [selectedPartQty, setSelectedPartQty] = useState(1);
-    const [addedParts, setAddedParts] = useState([]);
     
     const mapContainer = useRef(null);
     const map = useRef(null);
@@ -193,72 +191,35 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
 
         router.post(`/office-staff/rescue-dispatch/${selectedRescue.rescue_id}/assign`, {
             mechanic_id: selectedMechanicId,
-            notes: dispatchNotes,
-            parts: addedParts.map(p => ({
-                Inventory_id: p.Inventory_id,
-                quantity: p.quantity
-            }))
+            notes: dispatchNotes
         }, {
             onSuccess: () => {
                 setShowAssignModal(false);
                 setSelectedMechanicId('');
                 setDispatchNotes('');
-                setAddedParts([]);
             }
         });
     };
 
-    const handleAddPart = () => {
-        if (!selectedPartId || selectedPartQty < 1) return;
-        const part = inventory.find(i => i.Inventory_id.toString() === selectedPartId.toString());
-        if (!part) return;
-
-        if (selectedPartQty > part.quantity) {
-            alert(`Not enough stock. Only ${part.quantity} available.`);
-            return;
-        }
-
-        const existing = addedParts.find(p => p.Inventory_id === part.Inventory_id);
-        if (existing) {
-            const newQty = existing.quantity + selectedPartQty;
-            if (newQty > part.quantity) {
-                alert(`Not enough stock. Only ${part.quantity} available.`);
-                return;
-            }
-            setAddedParts(addedParts.map(p => 
-                p.Inventory_id === part.Inventory_id ? { ...p, quantity: newQty } : p
-            ));
-        } else {
-            setAddedParts([...addedParts, { ...part, quantity: selectedPartQty }]);
-        }
-
-        setSelectedPartId('');
-        setSelectedPartQty(1);
-    };
-
-    const handleRemovePart = (index) => {
-        setAddedParts(addedParts.filter((_, i) => i !== index));
-    };
-
     return (
         <OfficeStaffLayout title="Rescue Dispatch" authUser={authUser} activeMenu="rescue">
-            <div className="flex h-[calc(100vh-theme(spacing.16))] lg:h-screen bg-slate-50">
+            <div className="flex h-[calc(100vh-theme(spacing.16))] lg:h-screen bg-white">
                 {/* Left Panel - List */}
-                <div className="w-full lg:w-[400px] bg-white border-r border-slate-200 flex flex-col z-10 shadow-xl overflow-hidden shrink-0">
-                    <div className="p-6 border-b border-slate-200 bg-white">
+                <div className="w-full lg:w-[400px] bg-white border-r border-zinc-200 flex flex-col z-10 shrink-0">
+                    <div className="p-6 border-b border-zinc-200 bg-white">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
-                                    <AlertCircle className="w-6 h-6" />
+                                <div className="w-10 h-10 border border-zinc-200 text-zinc-900 flex items-center justify-center shrink-0">
+                                    <AlertCircle className="w-5 h-5" />
                                 </div>
-                                <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight leading-none">Rescue Dispatch</h1>
+                                <h1 className="text-xl lg:text-2xl font-bold text-zinc-900 tracking-tight leading-none">Rescue Dispatch</h1>
                             </div>
                         </div>
                         <div className="flex items-center justify-between mt-1">
-                            <p className="text-sm text-slate-500 font-medium">Manage driver emergencies</p>
+                            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Manage driver emergencies</p>
                             <button
                                 onClick={() => router.get('/office-staff/rescue-history')}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-[10px] uppercase tracking-widest font-bold transition-colors"
                             >
                                 <Clock className="w-3.5 h-3.5" />
                                 History
@@ -266,51 +227,51 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active Emergencies ({activeRescues.length})</h2>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-zinc-50">
+                        <h2 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Active Emergencies ({activeRescues.length})</h2>
                         
-                        {activeRescues.map(rescue => (
+                        {paginatedData.map(rescue => (
                             <div 
                                 key={rescue.rescue_id}
                                 onClick={() => setSelectedRescue(rescue === selectedRescue ? null : rescue)}
-                                className={`p-4 rounded-2xl cursor-pointer transition-all border ${
+                                className={`p-5 cursor-pointer transition-all border ${
                                     selectedRescue?.rescue_id === rescue.rescue_id 
-                                        ? 'bg-indigo-50 border-indigo-200 shadow-md shadow-indigo-100' 
-                                        : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm'
+                                        ? 'bg-zinc-100 border-zinc-300' 
+                                        : 'bg-white border-zinc-200 hover:border-zinc-300'
                                 }`}
                             >
-                                <div className="flex justify-between items-start mb-2">
+                                <div className="flex justify-between items-start mb-3">
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${
-                                            rescue.status === 'pending' ? 'bg-rose-500 animate-pulse' :
+                                        <div className={`w-2 h-2 rounded-full ${
+                                            rescue.status === 'pending' ? 'bg-red-500 animate-pulse' :
                                             rescue.status === 'assigned' ? 'bg-amber-500' :
                                             'bg-emerald-500'
                                         }`} />
-                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                                             {rescue.status.replace('_', ' ')}
                                         </span>
                                     </div>
-                                    <span className="text-xs font-semibold text-slate-400">
+                                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
                                         {new Date(rescue.created_at).toLocaleTimeString()}
                                     </span>
                                 </div>
 
-                                <h3 className="font-bold text-slate-900 mb-1">{rescue.issue_category}</h3>
-                                <p className="text-sm text-slate-600 font-medium mb-3 line-clamp-2">{rescue.description}</p>
+                                <h3 className="font-bold text-zinc-900 mb-1">{rescue.issue_category}</h3>
+                                <p className="text-sm text-zinc-600 font-medium mb-4 line-clamp-2">{rescue.description}</p>
                                 
                                 {rescue.media && rescue.media.length > 0 && (
-                                    <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+                                    <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
                                         {rescue.media.map((media, index) => (
                                             <a 
                                                 key={media.media_id || index} 
                                                 href={`/storage/${media.file_path}`} 
                                                 target="_blank" 
                                                 rel="noreferrer"
-                                                className="shrink-0"
+                                                className="shrink-0 block border border-zinc-200 hover:opacity-80 transition"
                                             >
                                                 <img 
                                                     src={`/storage/${media.file_path}`} 
-                                                    className="h-16 w-16 object-cover rounded-lg border border-slate-200 hover:opacity-80 transition"
+                                                    className="h-16 w-16 object-cover"
                                                     alt="Rescue Attachment"
                                                 />
                                             </a>
@@ -318,17 +279,19 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                     </div>
                                 )}
                                 
-                                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 p-2 rounded-lg mb-3">
-                                    <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                                <div className="flex items-center gap-2 text-xs text-zinc-600 bg-zinc-50 border border-zinc-200 p-2 mb-4">
+                                    <MapPin className="w-4 h-4 text-zinc-400 shrink-0" />
                                     <span className="truncate">{rescue.address || 'Location provided via GPS'}</span>
                                 </div>
 
-                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-200">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                            {rescue.driver?.user?.username?.charAt(0) || 'D'}
+                                        <div className="w-6 h-6 border border-zinc-200 bg-white flex items-center justify-center text-[10px] font-bold text-zinc-600">
+                                            {rescue.driver?.user?.firstname?.charAt(0) || 'D'}
                                         </div>
-                                        <span className="text-sm font-semibold text-slate-700">{rescue.driver?.user?.username || 'Driver'}</span>
+                                        <span className="text-xs font-semibold text-zinc-700">
+                                            {rescue.driver?.user ? `${rescue.driver.user.firstname} ${rescue.driver.user.lastname}` : 'Driver'}
+                                        </span>
                                     </div>
                                     
                                     {rescue.status === 'pending' ? (
@@ -338,13 +301,13 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                                 setSelectedRescue(rescue);
                                                 setShowAssignModal(true);
                                             }}
-                                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                                            className="px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] uppercase tracking-widest font-bold transition-colors"
                                         >
                                             Dispatch
                                         </button>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                                            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-zinc-700 bg-zinc-100 border border-zinc-200 px-2.5 py-1">
                                                 <Wrench className="w-3.5 h-3.5" />
                                                 {rescue.mechanic?.username}
                                             </div>
@@ -355,17 +318,27 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                         ))}
 
                         {activeRescues.length === 0 && (
-                            <div className="text-center py-10">
-                                <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-                                <h3 className="text-sm font-bold text-slate-700">All clear</h3>
-                                <p className="text-xs text-slate-500">No active rescue requests</p>
+                            <div className="text-center py-12">
+                                <CheckCircle className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+                                <h3 className="text-sm font-bold text-zinc-900">All clear</h3>
+                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500 mt-1">No active rescue requests</p>
                             </div>
+                        )}
+                        
+                        {activeRescues.length > 0 && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                                totalItems={activeRescues.length}
+                                itemsPerPage={10}
+                            />
                         )}
                     </div>
                 </div>
 
                 {/* Right Panel - Map */}
-                <div className="flex-1 relative bg-slate-100">
+                <div className="flex-1 relative bg-zinc-100">
                     <div ref={mapContainer} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
                 </div>
             </div>
@@ -373,100 +346,53 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
             {/* Assign Modal */}
             {showAssignModal && selectedRescue && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-                    <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] flex flex-col">
-                        <h2 className="text-xl font-bold text-slate-900 mb-4">Dispatch Mechanic & Parts</h2>
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowAssignModal(false)} />
+                    <div className="relative bg-white border border-zinc-200 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-zinc-200">
+                            <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Dispatch Mechanic & Parts</h2>
+                        </div>
                         
-                        <form onSubmit={handleAssignSubmit} className="flex-1 overflow-y-auto pr-2 space-y-4">
+                        <form onSubmit={handleAssignSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 bg-zinc-50">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Mechanic</label>
+                                <label className="block text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Select Mechanic</label>
                                 <select 
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
+                                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm focus:ring-0 focus:border-zinc-500 block p-3"
                                     value={selectedMechanicId}
                                     onChange={e => setSelectedMechanicId(e.target.value)}
                                     required
                                 >
                                     <option value="" disabled>Choose an available mechanic...</option>
                                     {mechanics.map(m => (
-                                        <option key={m.user_id} value={m.user_id}>{m.username}</option>
+                                        <option key={m.user_id} value={m.user_id}>
+                                            {m.firstname} {m.lastname}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Dispatch Notes (Optional)</label>
+                                <label className="block text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">Dispatch Notes (Optional)</label>
                                 <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3"
-                                    rows="2"
+                                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm focus:ring-0 focus:border-zinc-500 block p-3"
+                                    rows="3"
                                     placeholder="E.g., Bring spare tire and jack..."
                                     value={dispatchNotes}
                                     onChange={e => setDispatchNotes(e.target.value)}
                                 ></textarea>
                             </div>
 
-                            <div className="pt-2 border-t border-slate-100">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Parts to be Used (Optional)</label>
-                                
-                                {addedParts.length > 0 && (
-                                    <div className="space-y-2 mb-3">
-                                        {addedParts.map((p, i) => (
-                                            <div key={i} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                                                <div className="flex-1 text-xs font-semibold text-slate-700 truncate">{p.part_name}</div>
-                                                <div className="text-xs font-bold text-slate-900 bg-slate-200 px-2 py-1 rounded">Qty: {p.quantity}</div>
-                                                <button type="button" onClick={() => handleRemovePart(i)} className="text-rose-500 p-1 hover:bg-rose-100 rounded-md">
-                                                    <XCircle className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2 items-end bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                    <div className="flex-1">
-                                        <select 
-                                            className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg p-2"
-                                            value={selectedPartId}
-                                            onChange={e => setSelectedPartId(e.target.value)}
-                                        >
-                                            <option value="">Choose part...</option>
-                                            {inventory.map(item => (
-                                                <option key={item.Inventory_id} value={item.Inventory_id}>
-                                                    {item.part_name} (Stock: {item.quantity})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="w-16">
-                                        <input 
-                                            type="number" min="1" 
-                                            className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg p-2"
-                                            value={selectedPartQty}
-                                            onChange={e => setSelectedPartQty(parseInt(e.target.value) || 1)}
-                                        />
-                                    </div>
-                                    <button 
-                                        type="button"
-                                        onClick={handleAddPart}
-                                        disabled={!selectedPartId}
-                                        className="px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-zinc-200">
                                 <button
                                     type="button"
                                     onClick={() => setShowAssignModal(false)}
-                                    className="px-5 py-2.5 text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors text-sm font-semibold"
+                                    className="px-5 py-2.5 text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 transition-colors text-xs font-semibold uppercase tracking-widest"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!selectedMechanicId}
-                                    className="px-5 py-2.5 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-semibold shadow-lg shadow-indigo-200"
+                                    className="px-5 py-2.5 text-white bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 transition-colors text-xs font-semibold uppercase tracking-widest"
                                 >
                                     Confirm Dispatch
                                 </button>

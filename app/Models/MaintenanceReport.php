@@ -78,6 +78,15 @@ class MaintenanceReport extends Model
     }
 
     /**
+     * Get the parts used for this report via the transactions ledger
+     */
+    public function usedParts(): HasMany
+    {
+        return $this->hasMany(InventoryTransaction::class, 'reference_id', 'id')
+                    ->where('reference_type', 'maintenance');
+    }
+
+    /**
      * Get the user assigned to handle the report
      */
     public function assignedUser(): BelongsTo

@@ -142,6 +142,8 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         Route::get('/maintenance/driver-reports', [MaintenanceController::class, 'getDriverReports'])->name('maintenance.driver-reports');
         Route::patch('/maintenance/driver-reports/{id}/status', [MaintenanceController::class, 'updateDriverReportStatus'])->name('maintenance.driver-reports.status');
         Route::get('/maintenance/inventory', [MaintenanceController::class, 'getInventory'])->name('maintenance.inventory');
+        Route::get('/maintenance/inventory/transactions', [MaintenanceController::class, 'getAllTransactions'])->name('maintenance.inventory.transactions.all');
+        Route::get('/maintenance/inventory/{id}/transactions', [MaintenanceController::class, 'getTransactions'])->name('maintenance.inventory.transactions');
         Route::post('/maintenance/process-workflow', [MaintenanceController::class, 'processWorkflow'])->name('maintenance.process-workflow');
         Route::post('/maintenance/parts', [MaintenanceController::class, 'storePart'])->name('maintenance.parts.store');
         Route::put('/maintenance/parts/{id}', [MaintenanceController::class, 'updatePart'])->name('maintenance.parts.update');
@@ -162,6 +164,13 @@ Route::prefix('office-staff')->name('office_staff.')->group(function () {
         Route::get('/rescue-history', [\App\Http\Controllers\RescueDispatchController::class, 'history'])->name('rescue.history');
         Route::post('/rescue-dispatch/{id}/assign', [\App\Http\Controllers\RescueDispatchController::class, 'assign'])->name('rescue.assign');
         Route::post('/rescue-dispatch/{id}/add-parts', [\App\Http\Controllers\RescueDispatchController::class, 'addParts'])->name('rescue.add-parts');
+
+        // Part Requests
+        Route::get('/part-requests', [\App\Http\Controllers\PartRequestController::class, 'officeStaffIndex'])->name('part-requests.index');
+        Route::put('/part-requests/{id}/status', [\App\Http\Controllers\PartRequestController::class, 'updateOfficeStatus'])->name('part-requests.status');
+
+        // Reports
+        Route::get('/reports', [\App\Http\Controllers\OfficeStaffReportsController::class, 'index'])->name('reports');
 
     });
 });
@@ -208,6 +217,8 @@ Route::prefix('operational-manager')->name('operational_manager.')->group(functi
 Route::prefix('purchaser')->name('purchaser.')->group(function () {
     Route::middleware('purchaser')->group(function () {
         Route::get('/dashboard', [PurchaserDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/orders', [PurchaserDashboardController::class, 'orders'])->name('orders');
+        Route::put('/part-requests/{id}/status', [\App\Http\Controllers\PartRequestController::class, 'updatePurchaserStatus'])->name('part-requests.status');
     });
 });
 

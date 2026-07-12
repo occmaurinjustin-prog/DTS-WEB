@@ -109,7 +109,7 @@ export default function ReplayCenter({ authUser, deliveries }) {
 
         fetch(`/api/admin/driver-path/${selectedDelivery.driver_id}?delivery_id=${selectedDelivery.delivery_id}`)
             .then(res => res.json())
-            .then(data => {
+            .then(async data => {
                 if (data.success && data.path) {
                     // Interpolate points for large time gaps to ensure smooth playback and detect unrecorded offline periods
                     const processed = [];
@@ -123,19 +123,51 @@ export default function ReplayCenter({ authUser, deliveries }) {
                             
                             // Normal interval is ~10s. If gap > 20s, they lost signal or app slept.
                             if (diffSec > 20) {
-                                // Add 1 point every 10 seconds of gap
-                                const numInterpolated = Math.floor(diffSec / 10) - 1;
-                                for (let j = 1; j <= numInterpolated; j++) {
-                                    const fraction = j / (numInterpolated + 1);
-                                    processed.push({
-                                        ...p,
-                                        latitude: Number(prevP.latitude) + (Number(p.latitude) - Number(prevP.latitude)) * fraction,
-                                        longitude: Number(prevP.longitude) + (Number(p.longitude) - Number(prevP.longitude)) * fraction,
-                                        recorded_at: new Date(t1 + (diffSec * fraction * 1000)).toISOString(),
-                                        was_offline: true, // Force gap to be offline (orange)
-                                        speed: Number(prevP.speed) + (Number(p.speed) - Number(prevP.speed)) * fraction,
-                                        heading: Number(prevP.heading)
-                                    });
+                                let usedMapbox = false;
+                                try {
+                                    // Fetch exact path from Mapbox so the truck follows the real roads
+                                    const res = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${prevP.longitude},${prevP.latitude};${p.longitude},${p.latitude}?geometries=geojson&access_token=${mapboxgl.accessToken}`);
+                                    const mapboxData = await res.json();
+                                    
+                                    if (mapboxData.routes && mapboxData.routes.length > 0) {
+                                        const coords = mapboxData.routes[0].geometry.coordinates;
+                                        // Ignore first and last to prevent duplicates of prevP and p
+                                        const innerCoords = coords.slice(1, -1);
+                                        const numInterpolated = innerCoords.length;
+                                        
+                                        for (let j = 0; j < numInterpolated; j++) {
+                                            const fraction = (j + 1) / (numInterpolated + 1);
+                                            processed.push({
+                                                ...p,
+                                                longitude: innerCoords[j][0],
+                                                latitude: innerCoords[j][1],
+                                                recorded_at: new Date(t1 + (diffSec * fraction * 1000)).toISOString(),
+                                                was_offline: true,
+                                                speed: Number(prevP.speed) + (Number(p.speed) - Number(prevP.speed)) * fraction,
+                                                heading: Number(prevP.heading)
+                                            });
+                                        }
+                                        usedMapbox = true;
+                                    }
+                                } catch (e) {
+                                    console.error("Mapbox routing failed for offline gap", e);
+                                }
+                                
+                                // Fallback to straight linear interpolation if mapbox failed
+                                if (!usedMapbox) {
+                                    const numInterpolated = Math.floor(diffSec / 10) - 1;
+                                    for (let j = 1; j <= numInterpolated; j++) {
+                                        const fraction = j / (numInterpolated + 1);
+                                        processed.push({
+                                            ...p,
+                                            latitude: Number(prevP.latitude) + (Number(p.latitude) - Number(prevP.latitude)) * fraction,
+                                            longitude: Number(prevP.longitude) + (Number(p.longitude) - Number(prevP.longitude)) * fraction,
+                                            recorded_at: new Date(t1 + (diffSec * fraction * 1000)).toISOString(),
+                                            was_offline: true, // Force gap to be offline (orange)
+                                            speed: Number(prevP.speed) + (Number(p.speed) - Number(prevP.speed)) * fraction,
+                                            heading: Number(prevP.heading)
+                                        });
+                                    }
                                 }
                                 // Ensure the arrival point is also treated as offline so the final segment is orange
                                 p.was_offline = true;
@@ -412,15 +444,24 @@ export default function ReplayCenter({ authUser, deliveries }) {
                                         <span className="font-medium text-slate-400">Client:</span> <span className="font-medium">{delivery.client?.client_name}</span>
                                     </div>
                                     <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shadow-sm ${
-                                            selectedDelivery?.delivery_id === delivery.delivery_id
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-slate-100 text-slate-600'
-                                        }`}>
-                                            <span className="text-[9px] font-bold">
-                                                {delivery.driver?.user?.firstname?.charAt(0)}
-                                            </span>
-                                        </div>
+                                        {delivery.driver?.user?.profile_image ? (
+                                            <img 
+                                                src={delivery.driver.user.profile_image.startsWith('http') || delivery.driver.user.profile_image.startsWith('/') 
+                                                    ? delivery.driver.user.profile_image 
+                                                    : `/storage/${delivery.driver.user.profile_image}`} 
+                                                alt="Driver" 
+                                                className={`w-6 h-6 rounded-full object-cover shadow-sm ring-1 ${selectedDelivery?.delivery_id === delivery.delivery_id ? 'ring-blue-500' : 'ring-slate-200'}`}
+                                            />
+                                        ) : (
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shadow-sm ${selectedDelivery?.delivery_id === delivery.delivery_id
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                <span className="text-[10px] font-bold">
+                                                    {delivery.driver?.user?.firstname?.charAt(0) || '?'}
+                                                </span>
+                                            </div>
+                                        )}
                                         <span className="font-medium">{delivery.driver?.user?.firstname} {delivery.driver?.user?.lastname}</span>
                                     </div>
                                 </button>

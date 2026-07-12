@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\MaintenanceReport;
 use App\Models\Truck;
+use App\Models\Inventory;
+use App\Models\InventoryTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -217,6 +219,9 @@ class MechanicController extends Controller
             $validated = $request->validate([
                 'status' => 'required|in:in_progress,completed',
                 'notes' => 'nullable|string',
+                'parts_used' => 'nullable|array',
+                'parts_used.*.Inventory_id' => 'required|exists:inventory,Inventory_id',
+                'parts_used.*.quantity' => 'required|integer|min:1',
             ]);
 
             $maintenance = \App\Models\Maintenance::where('maintenance_id', $maintenanceId)
@@ -238,14 +243,46 @@ class MechanicController extends Controller
                 ], 404);
             }
 
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
             // Update maintenance report status
             $report->status = $validated['status'];
             if ($validated['status'] === 'in_progress') {
                 $report->started_at = now();
             } elseif ($validated['status'] === 'completed') {
                 $report->completed_at = now();
+                
+                // Process used parts if any
+                if (!empty($validated['parts_used'])) {
+                    foreach ($validated['parts_used'] as $partData) {
+                        $inventory = Inventory::findOrFail($partData['Inventory_id']);
+                        
+                        if ($inventory->quantity < $partData['quantity']) {
+                            throw new \Exception("Insufficient stock for part: {$inventory->part_name}");
+                        }
+
+                        // Create inventory transaction record
+                        InventoryTransaction::create([
+                            'inventory_id' => $partData['Inventory_id'],
+                            'user_id' => $user->user_id,
+                            'type' => 'stock_out',
+                            'quantity' => $partData['quantity'],
+                            'reference_type' => 'maintenance',
+                            'reference_id' => $report->id,
+                            'unit_cost' => $inventory->unit_cost ?? 0,
+                            'remarks' => "Used in Maintenance Report #{$report->id}",
+                        ]);
+
+                        // Deduct from inventory
+                        $inventory->quantity -= $partData['quantity'];
+                        $inventory->updateStatus();
+                        $inventory->save();
+                    }
+                }
             }
             $report->save();
+
+            \Illuminate\Support\Facades\DB::commit();
 
             \Log::info('Maintenance status updated', [
                 'maintenance_id' => $maintenanceId,
@@ -261,10 +298,42 @@ class MechanicController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             \Log::error('Update maintenance status error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating maintenance status'
+                'message' => 'Error updating maintenance status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get inventory parts for mechanics
+     */
+    public function getInventory(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || $user->role !== 'mechanic') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            $parts = Inventory::orderBy('part_name')->get();
+            
+            return response()->json([
+                'success' => true,
+                'parts' => $parts,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Get mechanic inventory error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching inventory'
             ], 500);
         }
     }
@@ -346,6 +415,20 @@ class MechanicController extends Controller
                 'issue_description' => 'nullable|string',
             ]);
 
+            $truck = Truck::find($validated['truck_id']);
+            if (!$truck) {
+                return response()->json(['success' => false, 'message' => 'Truck not found'], 404);
+            }
+
+            // Optimistic lock: Check if truck was already inspected for this week
+            $nextSaturday = \Carbon\Carbon::parse('next Saturday')->toDateString();
+            if ($truck->next_inspection_date && $truck->next_inspection_date > $nextSaturday) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This truck has already been inspected by another mechanic for this week.'
+                ], 409);
+            }
+
             // Create a maintenance report entry for the inspection
             $report = MaintenanceReport::create([
                 'mechanic_id' => $user->user_id,
@@ -355,8 +438,16 @@ class MechanicController extends Controller
                 'mileage' => $validated['mileage'],
                 'issue_title' => empty($validated['issue_title']) ? '' : $validated['issue_title'],
                 'issue_description' => empty($validated['issue_description']) ? '' : $validated['issue_description'],
-                'status' => 'pending',
+                'status' => $validated['overall_condition'] === 'good' ? 'completed' : 'pending',
             ]);
+
+            event(new \App\Events\MaintenanceReportUpdated());
+
+            // Unlock the truck and schedule next inspection
+            if ($truck) {
+                $truck->next_inspection_date = \Carbon\Carbon::parse('next Saturday')->toDateString();
+                $truck->save();
+            }
 
             return response()->json([
                 'success' => true,
@@ -429,7 +520,14 @@ class MechanicController extends Controller
     public function getAvailableTrucks(Request $request)
     {
         try {
-            $trucks = Truck::select('truck_id', 'plate_number', 'unique_id', 'vehicle_type', 'condition')
+            $nextSaturday = \Carbon\Carbon::parse('next Saturday')->toDateString();
+
+            $trucks = Truck::select('truck_id', 'plate_number', 'unique_id', 'vehicle_type', 'condition', 'next_inspection_date', 'current_inspection_mechanic_id')
+                ->where(function($query) use ($nextSaturday) {
+                    $query->whereNull('next_inspection_date')
+                          ->orWhere('next_inspection_date', '<=', $nextSaturday);
+                })
+                ->with(['currentInspectingMechanic:user_id,firstname,lastname'])
                 ->orderBy('plate_number')
                 ->get();
 
@@ -485,6 +583,11 @@ class MechanicController extends Controller
                 ->get();
 
             $formattedReports = $reports->map(function($report) {
+                $mechanicName = null;
+                if ($report->mechanic) {
+                    $mechanicName = $report->mechanic->firstname . ' ' . $report->mechanic->lastname;
+                }
+
                 return [
                     'id' => $report->id,
                     'inspection_date' => $report->inspection_date,
@@ -496,7 +599,7 @@ class MechanicController extends Controller
                     'created_at' => $report->created_at,
                     'mechanic' => [
                         'user_id' => $report->mechanic?->user_id,
-                        'name' => $report->mechanic?->name,
+                        'name' => $mechanicName,
                     ],
                     'truck' => [
                         'truck_id' => $report->truck?->truck_id,
@@ -594,6 +697,91 @@ class MechanicController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error creating maintenance schedule: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get mechanic's part requests
+     */
+    public function getPartRequests(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || $user->role !== 'mechanic') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            $requests = \App\Models\PartRequest::where('mechanic_id', $user->user_id)
+                ->with('inventory')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'requests' => $requests
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Get part requests error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching part requests'
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a new part request
+     */
+    public function createPartRequest(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || $user->role !== 'mechanic') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'part_name' => 'required|string|max:255',
+                'quantity' => 'required|integer|min:1',
+                'reason' => 'required|string',
+                'inventory_id' => 'nullable|exists:inventory,Inventory_id'
+            ]);
+
+            $partRequest = \App\Models\PartRequest::create([
+                'mechanic_id' => $user->user_id,
+                'inventory_id' => $validated['inventory_id'] ?? null,
+                'part_name' => $validated['part_name'],
+                'quantity' => $validated['quantity'],
+                'reason' => $validated['reason'],
+                'status' => 'pending'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Part request submitted successfully',
+                'request' => $partRequest
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Create part request error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error submitting part request'
             ], 500);
         }
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 // Logout Button Component with Confirmation
 function LogoutButton() {
@@ -154,9 +154,108 @@ function Sidebar({ activeMenu, notificationCount = 0 }) {
     );
 }
 
-export default function AdminLayout({ children, title, activeMenu, notificationCount = 0 }) {
+// ==================== HEADER COMPONENT ====================
+function Header({ authUser, title }) {
+    const { authUser: globalAuthUser } = usePage().props;
+    const finalUser = authUser || globalAuthUser;
+    
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
+    
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (isProfileOpen && !e.target.closest('.profile-dropdown-container')) {
+                setIsProfileOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isProfileOpen]);
+
+    return (
+        <header className="h-[70px] bg-white border-b border-gray-200 px-[30px] flex items-center justify-between sticky top-0 z-40">
+            {/* Left - Page Title */}
+            <div className="flex items-center gap-3">
+                <h1 className="text-xl font-semibold text-gray-900">{title || 'Dashboard'}</h1>
+            </div>
+
+            {/* Center - Search */}
+            <div className="relative w-[300px] hidden md:block">
+                <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                    type="text"
+                    placeholder="Search deliveries, drivers..."
+                    className="w-full h-[40px] pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] transition-all"
+                />
+            </div>
+
+            {/* Right - Actions & Profile */}
+            <div className="flex items-center gap-4">
+                {/* Removed Notifications */}
+
+                {/* Fullscreen */}
+                <button className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all">
+                    <Icon name="fullscreen" className="w-5 h-5 text-gray-600" />
+                </button>
+
+                {/* Dark Mode Toggle */}
+                <button
+                    onClick={() => setDarkMode(!darkMode)}
+                    className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-all"
+                >
+                    <Icon name={darkMode ? 'sun' : 'moon'} className="w-5 h-5 text-gray-600" />
+                </button>
+
+                {/* User Profile Dropdown */}
+                <div className="relative profile-dropdown-container border-l border-gray-200 pl-4 ml-2">
+                    <button 
+                        onClick={() => setIsProfileOpen(!isProfileOpen)}
+                        className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-gray-200 w-full text-left"
+                    >
+                        {finalUser?.profile_image ? (
+                            <img src={finalUser.profile_image} alt="Profile" className="w-10 h-10 rounded-xl object-cover shadow-sm border border-gray-200" />
+                        ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-xl flex items-center justify-center">
+                                <span className="text-white font-semibold text-sm">
+                                    {finalUser?.firstname?.charAt(0) || 'A'}
+                                </span>
+                            </div>
+                        )}
+                        <div className="hidden md:block">
+                            <p className="text-sm font-medium text-gray-900 group-hover:text-[#4F46E5] transition-colors">{finalUser?.firstname || 'Admin'} {finalUser?.lastname || 'User'}</p>
+                            <p className="text-xs text-gray-500">Administrator</p>
+                        </div>
+                    </button>
+
+                    {isProfileOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 shadow-xl py-1 z-50 rounded-xl">
+                            <div className="px-4 py-3 border-b border-gray-100">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{finalUser?.firstname} {finalUser?.lastname}</p>
+                                <p className="text-xs text-gray-500 truncate">{finalUser?.email || 'admin@example.com'}</p>
+                            </div>
+                            <div className="py-1">
+                                <Link href="/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                                    <Icon name="user" className="w-4 h-4" />
+                                    Account Settings
+                                </Link>
+                            </div>
+                            <div className="border-t border-gray-100 py-1">
+                                <LogoutButton />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
+}
+
+export default function AdminLayout({ children, title, activeMenu, notificationCount = 0, user, authUser }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [rescueAlert, setRescueAlert] = useState(null);
+    const { auth, authUser: globalAuthUser } = usePage().props;
+    const finalAuthUser = authUser || user || auth?.user || globalAuthUser;
 
     useEffect(() => {
         if (!window.Echo) return;
@@ -214,6 +313,7 @@ export default function AdminLayout({ children, title, activeMenu, notificationC
 
                 {/* Main Content */}
                 <div className="flex-1 flex flex-col min-w-0 lg:ml-[260px]">
+                    <Header authUser={finalAuthUser} title={title} />
                     <main className="flex-1 overflow-y-auto p-6">
                         {children}
                     </main>

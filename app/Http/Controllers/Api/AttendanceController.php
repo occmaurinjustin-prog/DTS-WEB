@@ -60,11 +60,7 @@ class AttendanceController extends Controller
         }
 
         // 2. Face verified, process attendance
-        if ($request->has('captured_at') && !empty($request->captured_at)) {
-            $now = Carbon::parse($request->captured_at);
-        } else {
-            $now = Carbon::now();
-        }
+        $now = Carbon::now();
         $date = $now->format('Y-m-d');
         $time = $now->format('H:i:s');
         
