@@ -100,9 +100,10 @@ export default function Inventory({ authUser }) {
     const [partForm, setPartForm] = useState({
         part_name: '',
         category: '',
-        quantity: 0,
-        min_stock_level: 5,
-        part_status: 'available'
+        quantity: '',
+        min_stock_level: '',
+        part_status: 'available',
+        price: ''
     });
 
     // Fetch inventory data
@@ -131,9 +132,10 @@ export default function Inventory({ authUser }) {
         setPartForm({
             part_name: '',
             category: '',
-            quantity: 0,
-            min_stock_level: 10,
-            part_status: 'available'
+            quantity: '',
+            min_stock_level: '',
+            part_status: 'available',
+            price: ''
         });
         setShowPartModal(true);
     };
@@ -143,9 +145,10 @@ export default function Inventory({ authUser }) {
         setPartForm({
             part_name: part.part_name || '',
             category: part.category || '',
-            quantity: part.quantity,
-            min_stock_level: part.min_stock_level,
-            part_status: part.part_status
+            quantity: part.quantity ?? '',
+            min_stock_level: part.min_stock_level ?? '',
+            part_status: part.part_status,
+            price: part.price ?? ''
         });
         setShowPartModal(true);
     };
@@ -214,7 +217,7 @@ export default function Inventory({ authUser }) {
         totalParts: parts.length,
         lowStockItems: parts.filter(p => p.quantity <= p.min_stock_level).length,
         outOfStockItems: parts.filter(p => p.quantity === 0).length,
-        totalValue: 0
+        totalValue: parts.reduce((sum, part) => sum + (parseFloat(part.price || 0) * part.quantity), 0)
     };
 
     return (
@@ -244,7 +247,7 @@ export default function Inventory({ authUser }) {
                         </button>
                         <button 
                             onClick={handleAddPart}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-xs font-semibold uppercase tracking-widest border border-zinc-900 hover:bg-zinc-800 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-widest border border-red-600 hover:bg-red-700 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Add New Part
@@ -290,7 +293,7 @@ export default function Inventory({ authUser }) {
                                 <BarChart3 className="w-4 h-4" />
                             </div>
                         </div>
-                        <div className="text-2xl font-bold text-zinc-900">N/A</div>
+                        <div className="text-2xl font-bold text-zinc-900">₱{stats.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                         <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Total Value</div>
                     </div>
                 </div>
@@ -307,14 +310,14 @@ export default function Inventory({ authUser }) {
 
 
 
-                {/* Inventory Table */}
-                <div className="bg-white border border-zinc-200 overflow-hidden">
+                <div className="bg-white border border-zinc-300 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-zinc-50 text-zinc-500 font-semibold uppercase text-[10px] tracking-wider border-b border-zinc-200">
+                            <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                                 <tr>
                                     <th className="px-6 py-4">Part Name</th>
                                     <th className="px-6 py-4">Category</th>
+                                    <th className="px-6 py-4">Price (₱)</th>
                                     <th className="px-6 py-4">Stock Level</th>
                                     <th className="px-6 py-4">Min Level</th>
                                     <th className="px-6 py-4">Status</th>
@@ -328,6 +331,9 @@ export default function Inventory({ authUser }) {
                                             <p className="font-bold text-zinc-900">{part.part_name}</p>
                                         </td>
                                         <td className="px-6 py-4 font-semibold text-zinc-600">{part.category || '-'}</td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-900">
+                                            ₱{parseFloat(part.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <span className={`font-black text-lg ${part.quantity <= part.min_stock_level ? 'text-red-600' : 'text-zinc-900'}`}>
                                                 {part.quantity}
@@ -352,7 +358,7 @@ export default function Inventory({ authUser }) {
                                                 </button>
                                                 <button 
                                                     onClick={() => handleEditPart(part)}
-                                                    className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-900 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white border border-red-600 text-[10px] font-bold uppercase tracking-widest transition-colors"
                                                     title="Edit Part"
                                                 >
                                                     Edit
@@ -405,14 +411,28 @@ export default function Inventory({ authUser }) {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Price (₱) *</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={partForm.price}
+                                    onChange={(e) => setPartForm({ ...partForm, price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+                                    className="w-full px-4 py-2 border border-zinc-200 focus:ring-0 focus:border-zinc-500 font-medium text-zinc-900 transition-colors [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:_textfield]"
+                                    required
+                                />
+                                {errors.price && <p className="text-red-500 text-xs mt-1 font-medium">{errors.price}</p>}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Quantity *</label>
                                     <input
                                         type="number"
                                         value={partForm.quantity}
-                                        onChange={(e) => setPartForm({ ...partForm, quantity: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2 border border-zinc-200 focus:ring-0 focus:border-zinc-500 font-medium text-zinc-900 transition-colors"
+                                        onChange={(e) => setPartForm({ ...partForm, quantity: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                                        className="w-full px-4 py-2 border border-zinc-200 focus:ring-0 focus:border-zinc-500 font-medium text-zinc-900 transition-colors [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:_textfield]"
                                         required
                                         min="0"
                                     />
@@ -424,8 +444,8 @@ export default function Inventory({ authUser }) {
                                     <input
                                         type="number"
                                         value={partForm.min_stock_level}
-                                        onChange={(e) => setPartForm({ ...partForm, min_stock_level: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2 border border-zinc-200 focus:ring-0 focus:border-zinc-500 font-medium text-zinc-900 transition-colors"
+                                        onChange={(e) => setPartForm({ ...partForm, min_stock_level: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                                        className="w-full px-4 py-2 border border-zinc-200 focus:ring-0 focus:border-zinc-500 font-medium text-zinc-900 transition-colors [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:_textfield]"
                                         required
                                         min="0"
                                     />
@@ -444,7 +464,7 @@ export default function Inventory({ authUser }) {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="px-5 py-2 text-xs font-semibold uppercase tracking-widest text-white bg-zinc-900 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-5 py-2 text-xs font-bold uppercase tracking-widest text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Saving...' : (editingPart ? 'Update Part' : 'Add Part')}
                             </button>

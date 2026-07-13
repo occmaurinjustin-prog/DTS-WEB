@@ -93,7 +93,7 @@ function LogoutButton() {
                                 method="post"
                                 as="button"
                                 type="button"
-                                className="px-4 py-2 text-white bg-zinc-900 hover:bg-zinc-800 transition-colors text-sm font-medium w-full"
+                                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 transition-colors text-sm font-medium w-full"
                             >
                                 Sign Out
                             </Link>
@@ -201,12 +201,12 @@ function Sidebar({ activeMenu, authUser }) {
         <div className="w-[260px] h-screen bg-white p-4 flex flex-col fixed left-0 top-0 z-50 border-r border-zinc-200">
             {/* Logo area */}
             <div className="flex items-center gap-3 mb-8 px-2 mt-2">
-                <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center">
+                <div className="w-8 h-8 bg-red-600 flex items-center justify-center">
                     <span className="text-white font-black text-lg">DT</span>
                 </div>
                 <div>
                     <h1 className="text-zinc-900 font-bold tracking-widest text-sm uppercase">DTS System</h1>
-                    <p className="text-zinc-500 text-[10px] tracking-widest uppercase mt-0.5">Staff Portal</p>
+                    <p className="text-red-600 text-[10px] tracking-widest uppercase mt-0.5 font-bold">Staff Portal</p>
                 </div>
             </div>
 
@@ -219,13 +219,13 @@ function Sidebar({ activeMenu, authUser }) {
                         <Link
                             key={item.id}
                             href={item.href}
-                            className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+                            className={`flex items-center gap-3 px-3 py-2.5 transition-colors border-l-4 ${
                                 isActive 
-                                    ? 'bg-zinc-50 text-zinc-900 border border-zinc-200 font-semibold shadow-sm' 
-                                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 border border-transparent'
+                                    ? 'bg-red-50 text-red-700 border-red-600 font-bold shadow-sm' 
+                                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 border-transparent'
                             }`}
                         >
-                            <Icon name={item.icon} className={`w-4 h-4 ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                            <Icon name={item.icon} className={`w-4 h-4 ${isActive ? 'text-red-700' : 'text-zinc-400'}`} />
                             <span className="text-sm">{item.name}</span>
                             {item.badge && (
                                 <span className="ml-auto px-1.5 py-0.5 bg-zinc-100 text-zinc-900 text-[10px] font-bold">

@@ -23,36 +23,63 @@ class OfficeStaffReportsController extends Controller
         $dateFilter = $this->getDateRange($dateRange);
 
         // ── Attendance Report Data ──
-        $attendanceData = Attendance::with('user:user_id,firstname,lastname,username')
-            ->whereBetween('attendance_date', [$dateFilter['start'], $dateFilter['end']])
-            ->orderBy('attendance_date', 'desc')
-            ->get()
-            ->map(function ($a) {
-                return [
-                    'id' => $a->id,
-                    'mechanic_name' => $a->user ? ($a->user->firstname . ' ' . $a->user->lastname) : 'Unknown',
-                    'username' => $a->user->username ?? 'N/A',
-                    'date' => $a->attendance_date->format('Y-m-d'),
-                    'morning_in' => $a->morning_in,
-                    'morning_out' => $a->morning_out,
-                    'afternoon_in' => $a->afternoon_in,
-                    'afternoon_out' => $a->afternoon_out,
-                    'total_hours' => $a->total_work_hours ?? 0,
-                    'late_minutes' => $a->late_minutes ?? 0,
-                    'status' => $a->status ?? 'present',
-                ];
-            });
+        $mechanics = User::where('role', 'mechanic')->orderBy('firstname')->get();
+        $rawAttendance = Attendance::whereBetween('attendance_date', [$dateFilter['start'], $dateFilter['end']])->get();
+
+        $attendanceData = $mechanics->map(function ($mechanic) use ($rawAttendance, $dateFilter) {
+            $records = $rawAttendance->where('user_id', $mechanic->user_id);
+            
+            $daysPresent = $records->filter(fn($r) => strtolower($r->status ?? '') === 'present')->count();
+            $daysLate = $records->filter(fn($r) => strtolower($r->status ?? '') === 'late')->count();
+            $daysHalfDay = $records->filter(fn($r) => strtolower($r->status ?? '') === 'half day')->count();
+            
+            // Calculate expected working days for this mechanic (excluding Sundays)
+            $start = $dateFilter['start']->copy()->startOfDay();
+            if ($mechanic->created_at && $mechanic->created_at->greaterThan($start)) {
+                $start = $mechanic->created_at->copy()->startOfDay();
+            }
+            $end = $dateFilter['end']->copy()->endOfDay();
+            if ($end->isFuture()) {
+                $end = now()->endOfDay();
+            }
+            
+            $totalWorkingDays = 0;
+            if ($start->lessThanOrEqualTo($end)) {
+                $current = $start->copy();
+                while ($current->lessThanOrEqualTo($end)) {
+                    if (!$current->isSunday()) {
+                        $totalWorkingDays++;
+                    }
+                    $current->addDay();
+                }
+            }
+
+            // Exclude explicit 'Absent' records from the attended count
+            $daysAttended = $daysPresent + $daysLate + $daysHalfDay;
+            $daysAbsent = max(0, $totalWorkingDays - $daysAttended);
+
+            return [
+                'id' => $mechanic->user_id,
+                'mechanic_name' => trim($mechanic->firstname . ' ' . $mechanic->lastname) ?: $mechanic->username,
+                'username' => $mechanic->username,
+                'days_present' => $daysPresent,
+                'days_absent' => $daysAbsent,
+                'days_late' => $daysLate,
+                'days_half_day' => $daysHalfDay,
+                'total_hours' => round($records->sum('total_work_hours'), 2),
+            ];
+        })->values();
 
         $attendanceStats = [
-            'total_records' => $attendanceData->count(),
-            'total_hours' => $attendanceData->sum('total_hours'),
-            'avg_hours' => $attendanceData->count() > 0 ? round($attendanceData->avg('total_hours'), 1) : 0,
-            'total_late' => $attendanceData->where('late_minutes', '>', 0)->count(),
-            'absent_count' => $attendanceData->where('status', 'absent')->count(),
+            'total_mechanics' => $mechanics->count(),
+            'total_hours' => $rawAttendance->sum('total_work_hours'),
+            'avg_hours' => $rawAttendance->count() > 0 ? round($rawAttendance->avg('total_work_hours'), 1) : 0,
+            'total_late' => $rawAttendance->where('late_minutes', '>', 0)->count(),
+            'absent_count' => $attendanceData->sum('days_absent'),
         ];
 
         // ── Maintenance Report Data ──
-        $maintenanceData = MaintenanceReport::with(['driver.user', 'mechanic', 'truck'])
+        $maintenanceData = MaintenanceReport::with(['driver.user', 'mechanic', 'truck', 'usedParts'])
             ->whereBetween('created_at', [$dateFilter['start'], $dateFilter['end']])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -70,6 +97,7 @@ class OfficeStaffReportsController extends Controller
                     'overall_condition' => $r->overall_condition ?? 'N/A',
                     'date_submitted' => $r->created_at->format('Y-m-d'),
                     'date_resolved' => $r->completed_at ? $r->completed_at->format('Y-m-d') : null,
+                    'total_cost' => $r->total_cost ?? 0,
                 ];
             });
 
@@ -141,7 +169,7 @@ class OfficeStaffReportsController extends Controller
             ->orderBy('period_start', 'desc')
             ->get()
             ->map(function ($p) {
-                $totalHours = $p->details->sum('total_hours');
+                $totalHours = $p->details->sum('hours');
                 return [
                     'id' => $p->payroll_id,
                     'mechanic_name' => $p->user ? ($p->user->firstname . ' ' . $p->user->lastname) : 'Unknown',

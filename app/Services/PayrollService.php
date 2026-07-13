@@ -43,8 +43,20 @@ class PayrollService
 
         // Calculations
         $totalHours = $attendances->sum('total_work_hours');
+        $totalLateMinutes = $attendances->sum('late_minutes');
+
         $grossSalary = $totalHours * $hourlyRate;
-        $netSalary = $grossSalary;
+
+        // Deductions
+        // 1. Late Penalty: Pro-rated based on the hourly rate
+        $latePenaltyPerMinute = $hourlyRate / 60;
+        $latePenaltyAmount = $totalLateMinutes * $latePenaltyPerMinute;
+
+        // 2. Flat Tax: 5% of gross salary
+        $taxDeductionAmount = $grossSalary * 0.05;
+
+        $totalDeductions = $latePenaltyAmount + $taxDeductionAmount;
+        $netSalary = $grossSalary - $totalDeductions;
 
         // Create or Update Payroll Record
         $payroll = Payroll::updateOrCreate(
@@ -64,6 +76,7 @@ class PayrollService
         $payroll->details()->delete();
 
         // Create details
+        // Earnings - Regular Hours
         $payroll->details()->create([
             'type' => 'earnings',
             'category' => 'regular_hours',
@@ -72,6 +85,30 @@ class PayrollService
             'rate' => $hourlyRate,
             'amount' => round($grossSalary, 2),
         ]);
+
+        // Deductions - Late Penalty
+        if ($latePenaltyAmount > 0) {
+            $payroll->details()->create([
+                'type' => 'deductions',
+                'category' => 'late_penalty',
+                'description' => "Late Penalty ({$totalLateMinutes} mins)",
+                'hours' => round($totalLateMinutes / 60, 2),
+                'rate' => round($hourlyRate, 2),
+                'amount' => round($latePenaltyAmount, 2),
+            ]);
+        }
+
+        // Deductions - Flat Tax
+        if ($taxDeductionAmount > 0) {
+            $payroll->details()->create([
+                'type' => 'deductions',
+                'category' => 'tax',
+                'description' => 'Flat Tax Deduction (5%)',
+                'hours' => null,
+                'rate' => null,
+                'amount' => round($taxDeductionAmount, 2),
+            ]);
+        }
 
         return $payroll;
     }

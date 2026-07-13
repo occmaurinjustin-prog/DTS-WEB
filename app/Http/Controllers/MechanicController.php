@@ -252,6 +252,8 @@ class MechanicController extends Controller
             } elseif ($validated['status'] === 'completed') {
                 $report->completed_at = now();
                 
+                $totalCost = 0;
+
                 // Process used parts if any
                 if (!empty($validated['parts_used'])) {
                     foreach ($validated['parts_used'] as $partData) {
@@ -269,7 +271,7 @@ class MechanicController extends Controller
                             'quantity' => $partData['quantity'],
                             'reference_type' => 'maintenance',
                             'reference_id' => $report->id,
-                            'unit_cost' => $inventory->unit_cost ?? 0,
+                            'unit_cost' => $inventory->price ?? 0,
                             'remarks' => "Used in Maintenance Report #{$report->id}",
                         ]);
 
@@ -277,8 +279,12 @@ class MechanicController extends Controller
                         $inventory->quantity -= $partData['quantity'];
                         $inventory->updateStatus();
                         $inventory->save();
+                        
+                        $totalCost += ($inventory->price ?? 0) * $partData['quantity'];
                     }
                 }
+                
+                $report->total_cost = $totalCost;
             }
             $report->save();
 

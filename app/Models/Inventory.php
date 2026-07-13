@@ -18,12 +18,14 @@ class Inventory extends Model
         'quantity',
         'min_stock_level',
         'part_status',
+        'price',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'min_stock_level' => 'integer',
         'part_status' => 'string',
+        'price' => 'decimal:2',
     ];
 
     // Check if stock is low

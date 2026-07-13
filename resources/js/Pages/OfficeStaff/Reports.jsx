@@ -3,30 +3,24 @@ import { Head, router } from '@inertiajs/react';
 import OfficeStaffLayout from '../../Layouts/OfficeStaffLayout';
 import { 
     FileBarChart, CalendarClock, Wrench, PackageSearch, ShoppingCart, 
-    BadgeDollarSign, LifeBuoy, Download, FileSpreadsheet, Filter,
+    BadgeDollarSign, LifeBuoy, Download, FileSpreadsheet, Filter, FileText,
     Clock, Users, AlertTriangle, CheckCircle2, TrendingUp, ChevronDown, Truck
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// ─── Stat Card ───
 function StatCard({ label, value, icon: Icon, accent = 'zinc' }) {
-    const colors = {
-        zinc: 'bg-zinc-50 text-zinc-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        amber: 'bg-amber-50 text-amber-600',
-        red: 'bg-red-50 text-red-600',
-        blue: 'bg-blue-50 text-blue-600',
-    };
     return (
-        <div className="bg-white border border-zinc-200 p-5 hover:shadow-sm transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{label}</p>
-                <div className={`w-8 h-8 flex items-center justify-center ${colors[accent]}`}>
-                    <Icon className="w-4 h-4" strokeWidth={2} />
+        <div className="bg-white border border-zinc-300 shadow-sm p-4 hover:border-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group overflow-hidden relative">
+            <div className="flex items-start justify-between">
+                <div>
+                    <p className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">{label}</p>
+                    <h3 className="text-2xl font-black text-black tracking-tight mt-1">{value}</h3>
+                </div>
+                <div className="p-2 rounded-lg bg-black text-white group-hover:bg-red-600 transition-colors">
+                    <Icon className="w-4 h-4" />
                 </div>
             </div>
-            <p className="text-2xl font-black text-zinc-900 tracking-tight">{value}</p>
         </div>
     );
 }
@@ -34,11 +28,11 @@ function StatCard({ label, value, icon: Icon, accent = 'zinc' }) {
 // ─── Data Table ───
 function DataTable({ headers, rows, emptyMessage = 'No records found' }) {
     return (
-        <div className="bg-white border border-zinc-200 overflow-hidden">
+        <div className="bg-white border border-zinc-300 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                    <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
                             {headers.map((h, i) => (
                                 <th key={i} className="px-5 py-3.5">{h}</th>
                             ))}
@@ -109,7 +103,8 @@ export default function Reports({
 
     const tabs = [
         { id: 'attendance', name: 'Attendance', icon: CalendarClock },
-        { id: 'maintenance', name: 'Maintenance', icon: Wrench },
+        { id: 'maintenance', name: 'Driver Reports', icon: AlertTriangle },
+        { id: 'inspections', name: 'Inspections', icon: Wrench },
         { id: 'inventory', name: 'Inventory', icon: PackageSearch },
         { id: 'part_requests', name: 'Part Requests', icon: ShoppingCart },
         { id: 'payroll', name: 'Payroll', icon: BadgeDollarSign },
@@ -127,7 +122,7 @@ export default function Reports({
     const handleDateChange = (range) => {
         setDateRange(range);
         setIsLoading(true);
-        router.get('/office-staff/reports', { dateRange: range }, {
+        router.get('/office-staff/reports', { dateRange: range, tab: activeTab }, {
             preserveState: true,
             preserveScroll: true,
             only: [
@@ -152,18 +147,25 @@ export default function Reports({
 
         switch (activeTab) {
             case 'attendance':
-                csv = 'Mechanic,Date,Morning In,Morning Out,Afternoon In,Afternoon Out,Total Hours,Late (min),Status\n';
+                csv = 'Mechanic,Days Present,Days Absent,Days Late,Half Days,Total Hours\n';
                 csv += attendanceData.map(r =>
-                    `"${r.mechanic_name}","${r.date}","${formatTime(r.morning_in)}","${formatTime(r.morning_out)}","${formatTime(r.afternoon_in)}","${formatTime(r.afternoon_out)}","${r.total_hours}","${r.late_minutes}","${r.status}"`
+                    `"${r.mechanic_name}","${r.days_present}","${r.days_absent}","${r.days_late}","${r.days_half_day}","${r.total_hours}"`
                 ).join('\n');
-                filename = `attendance_report_${dateRange}_${ts}.csv`;
+                filename = `attendance_summary_report_${dateRange}_${ts}.csv`;
                 break;
             case 'maintenance':
-                csv = 'Type,Reporter,Truck,Issue,Priority,Status,Date Submitted,Date Resolved\n';
-                csv += maintenanceData.map(r =>
-                    `"${r.type}","${r.reporter}","${r.truck}","${r.issue_title}","${r.priority}","${r.status}","${r.date_submitted}","${r.date_resolved || 'N/A'}"`
+                csv = 'Reporter,Truck,Issue,Priority,Status,Total Cost,Date Submitted,Date Resolved\n';
+                csv += maintenanceData.filter(r => r.type === 'driver_report').map(r =>
+                    `"${r.reporter}","${r.truck}","${r.issue_title}","${r.priority}","${r.status}","${r.total_cost || 0}","${r.date_submitted}","${r.date_resolved || 'N/A'}"`
                 ).join('\n');
-                filename = `maintenance_report_${dateRange}_${ts}.csv`;
+                filename = `driver_reports_${dateRange}_${ts}.csv`;
+                break;
+            case 'inspections':
+                csv = 'Mechanic,Truck,Condition,Status,Date Submitted,Date Resolved\n';
+                csv += maintenanceData.filter(r => r.type === 'inspection').map(r =>
+                    `"${r.reporter}","${r.truck}","${r.overall_condition}","${r.status}","${r.date_submitted}","${r.date_resolved || 'N/A'}"`
+                ).join('\n');
+                filename = `inspections_report_${dateRange}_${ts}.csv`;
                 break;
             case 'inventory':
                 csv = 'Part Name,Category,Current Stock,Min Stock Level,Status\n';
@@ -180,9 +182,9 @@ export default function Reports({
                 filename = `part_requests_report_${dateRange}_${ts}.csv`;
                 break;
             case 'trucks':
-                csv = 'Truck ID,Plate Number,Type,Status,Total Maintenance,Total Rescues\n';
+                csv = 'Truck ID,Plate Number,Type,Total Maintenance,Total Rescues\n';
                 csv += truckData.map(r =>
-                    `"${r.unique_id}","${r.plate_number}","${r.vehicle_type}","${r.truck_status}","${r.total_maintenance}","${r.total_rescues}"`
+                    `"${r.unique_id}","${r.plate_number}","${r.vehicle_type}","${r.total_maintenance}","${r.total_rescues}"`
                 ).join('\n');
                 filename = `truck_report_${dateRange}_${ts}.csv`;
                 break;
@@ -233,12 +235,16 @@ export default function Reports({
 
         switch (activeTab) {
             case 'attendance':
-                headers = ['Mechanic', 'Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Hours', 'Late', 'Status'];
-                body = attendanceData.map(r => [r.mechanic_name, r.date, formatTime(r.morning_in), formatTime(r.morning_out), formatTime(r.afternoon_in), formatTime(r.afternoon_out), r.total_hours, r.late_minutes + 'min', r.status]);
+                headers = ['Mechanic', 'Present', 'Absent', 'Late', 'Half Day', 'Total Hours'];
+                body = attendanceData.map(r => [r.mechanic_name, r.days_present, r.days_absent, r.days_late, r.days_half_day, r.total_hours]);
                 break;
             case 'maintenance':
-                headers = ['Type', 'Reporter', 'Truck', 'Issue', 'Priority', 'Status', 'Submitted', 'Resolved'];
-                body = maintenanceData.map(r => [r.type === 'driver_report' ? 'Driver' : 'Inspection', r.reporter, r.truck, r.issue_title, r.priority, r.status, r.date_submitted, r.date_resolved || '-']);
+                headers = ['Reporter', 'Truck', 'Issue', 'Priority', 'Status', 'Submitted', 'Resolved'];
+                body = maintenanceData.filter(r => r.type === 'driver_report').map(r => [r.reporter, r.truck, r.issue_title, r.priority, r.status, r.date_submitted, r.date_resolved || '-']);
+                break;
+            case 'inspections':
+                headers = ['Mechanic', 'Truck', 'Condition', 'Status', 'Submitted', 'Resolved'];
+                body = maintenanceData.filter(r => r.type === 'inspection').map(r => [r.reporter, r.truck, r.overall_condition, r.status, r.date_submitted, r.date_resolved || '-']);
                 break;
             case 'inventory':
                 headers = ['Part Name', 'Category', 'Stock', 'Min Level', 'Status'];
@@ -249,8 +255,8 @@ export default function Reports({
                 body = partRequestsData.map(r => [r.mechanic_name, r.part_name, r.quantity, r.reason, r.status, r.date_requested]);
                 break;
             case 'trucks':
-                headers = ['Truck ID', 'Plate Number', 'Type', 'Status', 'Total Maint.', 'Total Rescues'];
-                body = truckData.map(r => [r.unique_id, r.plate_number, r.vehicle_type, r.truck_status, r.total_maintenance, r.total_rescues]);
+                headers = ['Truck ID', 'Plate Number', 'Type', 'Total Maint.', 'Total Rescues'];
+                body = truckData.map(r => [r.unique_id, r.plate_number, r.vehicle_type, r.total_maintenance, r.total_rescues]);
                 break;
             case 'payroll':
                 headers = ['Mechanic', 'Period Start', 'Period End', 'Hours', 'Gross Pay', 'Net Pay', 'Status'];
@@ -284,10 +290,13 @@ export default function Reports({
         let summaryLines = [];
         switch (activeTab) {
             case 'attendance':
-                summaryLines = [`Total Records: ${attendanceStats.total_records}`, `Total Hours: ${attendanceStats.total_hours}`, `Avg Hours/Day: ${attendanceStats.avg_hours}`, `Late Count: ${attendanceStats.total_late}`];
+                summaryLines = [`Total Mechanics: ${attendanceStats.total_mechanics}`, `Total Hours: ${attendanceStats.total_hours}`, `Avg Hours/Day: ${attendanceStats.avg_hours}`, `Late Count: ${attendanceStats.total_late}`];
                 break;
             case 'maintenance':
-                summaryLines = [`Total: ${maintenanceStats.total}`, `Driver Reports: ${maintenanceStats.driver_reports}`, `Inspections: ${maintenanceStats.inspections}`, `Pending: ${maintenanceStats.pending}`, `Completed: ${maintenanceStats.completed}`];
+                summaryLines = [`Total Driver Reports: ${maintenanceData.filter(r => r.type === 'driver_report').length}`, `Pending: ${maintenanceData.filter(r => r.type === 'driver_report' && r.status === 'pending').length}`, `Completed: ${maintenanceData.filter(r => r.type === 'driver_report' && r.status === 'completed').length}`];
+                break;
+            case 'inspections':
+                summaryLines = [`Total Inspections: ${maintenanceData.filter(r => r.type === 'inspection').length}`, `Pending: ${maintenanceData.filter(r => r.type === 'inspection' && r.status === 'pending').length}`, `Completed: ${maintenanceData.filter(r => r.type === 'inspection' && r.status === 'completed').length}`];
                 break;
             case 'inventory':
                 summaryLines = [`Total Parts: ${inventoryStats.total_parts}`, `Low Stock: ${inventoryStats.low_stock}`, `Out of Stock: ${inventoryStats.out_of_stock}`, `Stock In (Period): ${inventoryStats.stock_in}`, `Stock Out (Period): ${inventoryStats.stock_out}`];
@@ -325,49 +334,72 @@ export default function Reports({
     const renderAttendance = () => (
         <>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <StatCard label="Total Records" value={attendanceStats.total_records} icon={FileBarChart} />
+                <StatCard label="Total Mechanics" value={attendanceStats.total_mechanics} icon={Users} />
                 <StatCard label="Total Hours" value={attendanceStats.total_hours} icon={Clock} accent="emerald" />
                 <StatCard label="Avg Hours/Day" value={attendanceStats.avg_hours} icon={TrendingUp} accent="blue" />
                 <StatCard label="Late Count" value={attendanceStats.total_late} icon={AlertTriangle} accent="amber" />
                 <StatCard label="Absent" value={attendanceStats.absent_count} icon={Users} accent="red" />
             </div>
             <DataTable
-                headers={['Mechanic', 'Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Total Hours', 'Late (min)', 'Status']}
+                headers={['Mechanic', 'Days Present', 'Days Absent', 'Days Late', 'Half Days', 'Total Hours']}
                 rows={attendanceData.map((r, i) => (
                     <tr key={i} className="hover:bg-zinc-50 transition-colors">
                         <td className="px-5 py-3 text-sm font-semibold text-zinc-900">{r.mechanic_name}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600">{r.date}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{formatTime(r.morning_in)}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{formatTime(r.morning_out)}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{formatTime(r.afternoon_in)}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{formatTime(r.afternoon_out)}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600">{r.days_present}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600">{r.days_absent}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600">{r.days_late}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600">{r.days_half_day}</td>
                         <td className="px-5 py-3 text-sm font-bold text-zinc-900">{r.total_hours}h</td>
-                        <td className="px-5 py-3 text-sm text-zinc-600">{r.late_minutes > 0 ? <span className="text-amber-600 font-semibold">{r.late_minutes}</span> : '0'}</td>
-                        <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
                     </tr>
                 ))}
             />
         </>
     );
 
-    const renderMaintenance = () => (
+    const renderMaintenance = () => {
+        const driverReports = maintenanceData.filter(r => r.type === 'driver_report');
+        return (
         <>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <StatCard label="Total Reports" value={maintenanceStats.total} icon={FileBarChart} />
-                <StatCard label="Driver Reports" value={maintenanceStats.driver_reports} icon={Users} accent="blue" />
-                <StatCard label="Inspections" value={maintenanceStats.inspections} icon={Wrench} accent="zinc" />
-                <StatCard label="Pending" value={maintenanceStats.pending} icon={Clock} accent="amber" />
-                <StatCard label="Completed" value={maintenanceStats.completed} icon={CheckCircle2} accent="emerald" />
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <StatCard label="Total Reports" value={driverReports.length} icon={FileBarChart} />
+                <StatCard label="Pending" value={driverReports.filter(r => r.status === 'pending').length} icon={Clock} accent="amber" />
+                <StatCard label="Completed" value={driverReports.filter(r => r.status === 'completed').length} icon={CheckCircle2} accent="emerald" />
             </div>
             <DataTable
-                headers={['Type', 'Reporter', 'Truck', 'Issue', 'Priority', 'Status', 'Submitted', 'Resolved']}
-                rows={maintenanceData.map((r, i) => (
+                headers={['Reporter', 'Truck', 'Issue', 'Priority', 'Status', 'Total Cost', 'Submitted', 'Resolved']}
+                rows={driverReports.map((r, i) => (
                     <tr key={i} className="hover:bg-zinc-50 transition-colors">
-                        <td className="px-5 py-3"><StatusBadge status={r.type === 'driver_report' ? 'pending' : 'completed'} /><span className="ml-2 text-xs text-zinc-500">{r.type === 'driver_report' ? 'Driver' : 'Inspection'}</span></td>
                         <td className="px-5 py-3 text-sm font-semibold text-zinc-900">{r.reporter}</td>
                         <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{r.truck}</td>
                         <td className="px-5 py-3 text-sm text-zinc-600 max-w-[200px] truncate">{r.issue_title}</td>
                         <td className="px-5 py-3"><StatusBadge status={r.priority} /></td>
+                        <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
+                        <td className="px-5 py-3 text-sm font-bold text-red-600">₱{parseFloat(r.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-500">{r.date_submitted}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-500">{r.date_resolved || '—'}</td>
+                    </tr>
+                ))}
+            />
+        </>
+        );
+    };
+
+    const renderInspections = () => {
+        const inspections = maintenanceData.filter(r => r.type === 'inspection');
+        return (
+        <>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <StatCard label="Total Inspections" value={inspections.length} icon={FileBarChart} />
+                <StatCard label="Pending" value={inspections.filter(r => r.status === 'pending').length} icon={Clock} accent="amber" />
+                <StatCard label="Completed" value={inspections.filter(r => r.status === 'completed').length} icon={CheckCircle2} accent="emerald" />
+            </div>
+            <DataTable
+                headers={['Mechanic', 'Truck', 'Condition', 'Status', 'Submitted', 'Resolved']}
+                rows={inspections.map((r, i) => (
+                    <tr key={i} className="hover:bg-zinc-50 transition-colors">
+                        <td className="px-5 py-3 text-sm font-semibold text-zinc-900">{r.reporter}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600 font-mono">{r.truck}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-600 capitalize">{r.overall_condition}</td>
                         <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
                         <td className="px-5 py-3 text-sm text-zinc-500">{r.date_submitted}</td>
                         <td className="px-5 py-3 text-sm text-zinc-500">{r.date_resolved || '—'}</td>
@@ -375,7 +407,8 @@ export default function Reports({
                 ))}
             />
         </>
-    );
+        );
+    };
 
     const renderInventory = () => (
         <>
@@ -484,13 +517,12 @@ export default function Reports({
                 <StatCard label="Total Rescues" value={truckStats.total_rescue_records} icon={LifeBuoy} accent="red" />
             </div>
             <DataTable
-                headers={['Truck ID', 'Plate Number', 'Vehicle Type', 'Status', 'Total Maintenance', 'Total Rescues']}
+                headers={['Truck ID', 'Plate Number', 'Vehicle Type', 'Total Maintenance', 'Total Rescues']}
                 rows={truckData.map((r, i) => (
                     <tr key={i} className="hover:bg-zinc-50 transition-colors">
                         <td className="px-5 py-3 text-sm font-mono text-zinc-600">{r.unique_id}</td>
                         <td className="px-5 py-3 text-sm font-bold text-zinc-900">{r.plate_number}</td>
                         <td className="px-5 py-3 text-sm text-zinc-600 capitalize">{r.vehicle_type}</td>
-                        <td className="px-5 py-3"><StatusBadge status={r.truck_status} /></td>
                         <td className="px-5 py-3 text-sm font-bold text-zinc-900">{r.total_maintenance}</td>
                         <td className="px-5 py-3 text-sm font-bold text-zinc-900">{r.total_rescues}</td>
                     </tr>
@@ -503,6 +535,7 @@ export default function Reports({
         switch (activeTab) {
             case 'attendance': return renderAttendance();
             case 'maintenance': return renderMaintenance();
+            case 'inspections': return renderInspections();
             case 'inventory': return renderInventory();
             case 'part_requests': return renderPartRequests();
             case 'payroll': return renderPayroll();
@@ -520,6 +553,7 @@ export default function Reports({
                 {/* Header Bar */}
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
                     <div>
+                        <h1 className="text-2xl font-bold text-zinc-900">Reports</h1>
                         <p className="text-zinc-500 text-sm">Generate and export operational reports for admin review.</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -538,36 +572,27 @@ export default function Reports({
                         </div>
 
                         {/* Export Buttons */}
-                        <button
-                            onClick={exportCSV}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 text-sm font-medium transition-colors"
-                        >
-                            <FileSpreadsheet className="w-4 h-4 text-zinc-500" />
-                            CSV
+                        <button onClick={exportCSV} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-black text-black hover:bg-red-50 hover:text-red-700 hover:border-red-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none translate-y-0 hover:translate-y-[2px] hover:translate-x-[2px]">
+                            <Download className="w-4 h-4" /> Export CSV
                         </button>
-                        <button
-                            onClick={exportPDF}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white hover:bg-zinc-800 text-sm font-medium transition-colors"
-                        >
-                            <Download className="w-4 h-4" />
-                            PDF
+                        <button onClick={exportPDF} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-black text-black hover:bg-red-50 hover:text-red-700 hover:border-red-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none translate-y-0 hover:translate-y-[2px] hover:translate-x-[2px]">
+                            <FileText className="w-4 h-4" /> Export PDF
                         </button>
                     </div>
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex overflow-x-auto border-b border-zinc-200 mb-8 -mx-1">
+                <div className="flex flex-wrap gap-2 mb-8 border-b border-zinc-200 pb-2">
                     {tabs.map(tab => {
                         const TabIcon = tab.icon;
-                        const isActive = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors mx-1 ${
-                                    isActive
-                                        ? 'border-zinc-900 text-zinc-900'
-                                        : 'border-transparent text-zinc-400 hover:text-zinc-600 hover:border-zinc-300'
+                                onClick={() => { setActiveTab(tab.id); router.get('/office-staff/reports', { tab: tab.id, dateRange }, { preserveState: true }); }}
+                                className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-all border ${
+                                    activeTab === tab.id
+                                        ? 'bg-red-600 text-white border-red-600 shadow-md'
+                                        : 'bg-white text-zinc-500 hover:text-black border-transparent hover:bg-zinc-100 hover:border-black'
                                 }`}
                             >
                                 <TabIcon className="w-4 h-4" strokeWidth={2} />

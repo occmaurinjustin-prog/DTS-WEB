@@ -239,7 +239,7 @@ function WorkflowModal({ isOpen, onClose, report, authUser, mechanics = [] }) {
                                 <button
                                     onClick={handleConfirm}
                                     disabled={loading}
-                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold uppercase tracking-widest bg-zinc-900 text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                                 >
                                     <Icon name="check" className="w-4 h-4" />
                                     {loading ? 'Processing...' : 'Confirm Maintenance'}
@@ -930,20 +930,20 @@ const FleetManagement = ({ authUser, reports: initialReports, mechanics = [] }) 
                         <div className="flex space-x-2 border-b border-zinc-200 pb-4 mb-6">
                             <button
                                 onClick={() => setActiveTab('driver-reports')}
-                                className={`px-5 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
+                                className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-colors border ${
                                     activeTab === 'driver-reports'
-                                        ? 'bg-zinc-900 text-white'
-                                        : 'text-zinc-500 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200'
+                                        ? 'bg-red-600 text-white border-red-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                                        : 'text-zinc-500 hover:text-black bg-white hover:bg-zinc-100 border-transparent hover:border-black'
                                 }`}
                             >
                                 Driver Reports
                             </button>
                             <button
                                 onClick={() => setActiveTab('mechanic-inspections')}
-                                className={`px-5 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
+                                className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-colors border ${
                                     activeTab === 'mechanic-inspections'
-                                        ? 'bg-zinc-900 text-white'
-                                        : 'text-zinc-500 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200'
+                                        ? 'bg-red-600 text-white border-red-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                                        : 'text-zinc-500 hover:text-black bg-white hover:bg-zinc-100 border-transparent hover:border-black'
                                 }`}
                             >
                                 Mechanic Inspections
@@ -980,10 +980,10 @@ const FleetManagement = ({ authUser, reports: initialReports, mechanics = [] }) 
                                 </div>
 
                                 {/* Table */}
-                                <div className="bg-white border border-zinc-200 overflow-hidden">
+                                <div className="bg-white border border-zinc-300 shadow-sm overflow-hidden">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-sm whitespace-nowrap">
-                                            <thead className="bg-zinc-50 text-zinc-500 font-semibold uppercase text-[10px] tracking-wider border-b border-zinc-200">
+                                            <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                                                 <tr>
                                                     <th className="px-6 py-4">Report ID</th>
                                                     <th className="px-6 py-4">Vehicle & Driver</th>
@@ -1129,10 +1129,10 @@ const FleetManagement = ({ authUser, reports: initialReports, mechanics = [] }) 
                                 </div>
 
                                 {/* Table */}
-                                <div className="bg-white border border-zinc-200 overflow-hidden">
+                                <div className="bg-white border border-zinc-300 shadow-sm overflow-hidden">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-sm whitespace-nowrap">
-                                            <thead className="bg-zinc-50 text-zinc-500 font-semibold uppercase text-[10px] tracking-wider border-b border-zinc-200">
+                                            <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                                                 <tr>
                                                     <th className="px-6 py-4">Inspection ID</th>
                                                     <th className="px-6 py-4">Truck & Mechanic</th>

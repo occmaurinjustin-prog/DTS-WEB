@@ -301,7 +301,7 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                                 setSelectedRescue(rescue);
                                                 setShowAssignModal(true);
                                             }}
-                                            className="px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] uppercase tracking-widest font-bold transition-colors"
+                                            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] uppercase tracking-widest font-bold transition-colors"
                                         >
                                             Dispatch
                                         </button>
@@ -392,7 +392,7 @@ export default function RescueDispatch({ authUser, activeRescues, rescueHistory,
                                 <button
                                     type="submit"
                                     disabled={!selectedMechanicId}
-                                    className="px-5 py-2.5 text-white bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 transition-colors text-xs font-semibold uppercase tracking-widest"
+                                    className="px-5 py-2.5 text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors text-xs font-bold uppercase tracking-widest"
                                 >
                                     Confirm Dispatch
                                 </button>

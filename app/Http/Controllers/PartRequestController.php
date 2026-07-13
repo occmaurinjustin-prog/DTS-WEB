@@ -43,7 +43,8 @@ class PartRequestController extends Controller
                     'part_name' => $partRequest->part_name,
                     'quantity' => 0,
                     'min_stock_level' => 5,
-                    'part_status' => 'available_stock'
+                    'part_status' => 'available_stock',
+                    'price' => 0
                 ]);
                 $partRequest->inventory_id = $inventory->Inventory_id;
             }

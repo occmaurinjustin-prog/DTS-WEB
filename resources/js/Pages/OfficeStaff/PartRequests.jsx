@@ -46,7 +46,7 @@ export default function PartRequests({ authUser, partRequests }) {
 
                 <div className="bg-white border border-zinc-200 overflow-hidden">
                     <table className="w-full text-left text-sm text-zinc-600 whitespace-nowrap">
-                        <thead className="bg-zinc-50 text-zinc-500 font-semibold uppercase text-[10px] tracking-wider border-b border-zinc-200">
+                        <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                             <tr>
                                 <th className="px-6 py-4">Mechanic</th>
                                 <th className="px-6 py-4">Part Name</th>
@@ -94,7 +94,7 @@ export default function PartRequests({ authUser, partRequests }) {
                                                     <button
                                                         onClick={() => handleStatusUpdate(req.id, 'approved')}
                                                         disabled={processingId === req.id}
-                                                        className="px-4 py-1.5 bg-zinc-900 text-white border border-zinc-900 hover:bg-zinc-800 transition-colors disabled:opacity-50 text-[10px] font-bold uppercase tracking-widest"
+                                                        className="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 text-[10px] font-bold uppercase tracking-widest"
                                                     >
                                                         Approve
                                                     </button>

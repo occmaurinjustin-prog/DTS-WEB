@@ -40,7 +40,7 @@ export default function RescueHistory({ authUser, rescueHistory }) {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                                <tr className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                                     <th className="px-6 py-4">Date</th>
                                     <th className="px-6 py-4">Driver</th>
                                     <th className="px-6 py-4">Truck</th>

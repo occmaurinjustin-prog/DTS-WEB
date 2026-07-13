@@ -46,32 +46,32 @@ export default function Dashboard({ authUser, userInfo, officeStaff, stats }) {
 
 function StatCard({ title, value, icon: Icon, trend, trendType }) {
     return (
-        <div className="p-4 border border-zinc-200 bg-white hover:shadow-sm transition-all group relative overflow-hidden">
+        <div className="p-4 border border-zinc-300 bg-white hover:border-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all group relative overflow-hidden">
             {trendType === 'urgent' && (
-                <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
             )}
             {trendType === 'warning' && (
-                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-red-400"></div>
             )}
             <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{title}</p>
+                <p className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">{title}</p>
                 <div className={`p-1.5 rounded-lg ${
-                    trendType === 'urgent' ? 'bg-red-50 text-red-500' :
-                    trendType === 'warning' ? 'bg-amber-50 text-amber-500' :
-                    trendType === 'good' ? 'bg-emerald-50 text-emerald-500' :
-                    'bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100 group-hover:text-zinc-900'
-                } transition-colors`}>
+                    trendType === 'urgent' ? 'bg-red-100 text-red-700' :
+                    trendType === 'warning' ? 'bg-red-50 text-red-600' :
+                    trendType === 'good' ? 'bg-emerald-50 text-emerald-600' :
+                    'bg-black text-white group-hover:bg-red-600 transition-colors'
+                }`}>
                     <Icon className="w-4 h-4" strokeWidth={2} />
                 </div>
             </div>
             <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-black text-zinc-900 tracking-tight">{value}</h3>
+                <h3 className="text-2xl font-black text-black tracking-tight">{value}</h3>
                 {trend && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide border ${
-                        trendType === 'urgent' ? 'border-red-200 text-red-600 bg-red-50' : 
-                        trendType === 'warning' ? 'border-amber-200 text-amber-600 bg-amber-50' : 
-                        trendType === 'good' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 
-                        'border-zinc-200 text-zinc-600 bg-zinc-50'
+                        trendType === 'urgent' ? 'border-red-200 text-red-700 bg-red-50' : 
+                        trendType === 'warning' ? 'border-red-200 text-red-600 bg-red-50' : 
+                        trendType === 'good' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 
+                        'border-black text-black bg-white'
                     }`}>
                         {trend}
                     </span>

@@ -99,6 +99,7 @@ class MaintenanceController extends Controller
             'quantity' => 'required|integer|min:0',
             'min_stock_level' => 'required|integer|min:0',
             'part_status' => 'required|in:available,low_stock,out_of_stock',
+            'price' => 'required|numeric|min:0',
         ]);
 
         $part = Inventory::create($validated);
@@ -127,6 +128,7 @@ class MaintenanceController extends Controller
             'quantity' => 'required|integer|min:0',
             'min_stock_level' => 'required|integer|min:0',
             'part_status' => 'required|in:available,low_stock,out_of_stock',
+            'price' => 'required|numeric|min:0',
         ]);
 
         $oldQuantity = $part->quantity;

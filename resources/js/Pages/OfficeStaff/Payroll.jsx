@@ -173,10 +173,10 @@ export default function Payroll({ payrolls, mechanics }) {
                                     <button 
                                         type="submit" 
                                         disabled={isGenerating}
-                                        className={`w-full py-3 text-white transition-colors font-medium text-sm flex items-center justify-center gap-2 ${
+                                        className={`w-full py-3 text-white transition-colors font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${
                                             isGenerating 
                                                 ? 'bg-zinc-400 cursor-not-allowed' 
-                                                : 'bg-zinc-900 hover:bg-zinc-800'
+                                                : 'bg-red-600 hover:bg-red-700'
                                         }`}
                                     >
                                         {isGenerating ? (
@@ -222,12 +222,12 @@ export default function Payroll({ payrolls, mechanics }) {
                             
                             <div className="overflow-x-auto no-scrollbar">
                                 <table className="w-full text-left text-sm whitespace-nowrap">
-                                    <thead className="bg-white text-zinc-500 font-semibold uppercase text-[10px] tracking-wider border-b border-zinc-200">
+                                    <thead className="bg-black text-white font-bold uppercase text-[10px] tracking-wider">
                                         <tr>
                                             <th className="px-4 py-3">Employee & Period</th>
                                             <th className="px-4 py-3">Hours & Rate</th>
                                             <th className="px-4 py-3">Gross Salary</th>
-                                            <th className="px-4 py-3 text-red-500">Deductions</th>
+                                            <th className="px-4 py-3 text-red-400">Deductions</th>
                                             <th className="px-4 py-3">Net Salary</th>
                                             <th className="px-4 py-3 text-center">Status</th>
                                         </tr>
